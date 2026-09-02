@@ -44,11 +44,6 @@ const TABS = [
     { name: 'テレ朝news', url: gn('site:news.tv-asahi.co.jp') },
     { name: '日テレNEWS', url: gn('site:news.ntv.co.jp') },
   ]},
-  { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
-    { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja' },
-    { name: 'GameWith', url: 'https://gamewith.jp/pokemongo/feed' },   // GoogleのサーバーからはHTTP 403で取れないことがある
-    { name: 'ポケモンGO', url: gn('ポケモンGO') },
-  ]},
   { id: 'tech', name: 'テクノロジー', color: '#8e5bd6', feeds: [
     { name: 'ITmedia', url: 'https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml' },
     { name: 'Impress Watch', url: 'https://www.watch.impress.co.jp/data/rss/1.0/ipw/feed.rdf' },
@@ -83,13 +78,6 @@ const TABS = [
     { name: 'webCG', url: 'https://www.webcg.net/list/feed/rss' },
     { name: 'くるまのニュース', url: 'https://kuruma-news.jp/feed' },
   ]},
-  { id: 'hobby', name: 'ホビー', color: '#d94b4b', feeds: [
-    { name: '電撃ホビー', url: 'https://hobby.dengeki.com/feed/' },
-    { name: 'ホビージャパン', url: 'https://hjweb.jp/feed' },
-    { name: 'Hobby Watch', url: 'https://hobby.watch.impress.co.jp/data/rss/1.0/hbw/feed.rdf' },
-    { name: 'ファミ通', url: gn('site:famitsu.com') },
-    { name: '4Gamer', url: 'https://www.4gamer.net/rss/index.xml' },
-  ]},
   { id: 'fashion', name: 'ファッション', color: '#e8862a', feeds: [
     { name: 'WWD JAPAN', url: 'https://www.wwdjapan.com/feed' },
     { name: 'FASHIONSNAP', url: 'https://www.fashionsnap.com/rss.xml' },
@@ -100,6 +88,11 @@ const TABS = [
     { name: 'Kpop monster', url: 'https://www.kpopmonster.jp/?feed=rss2' },
     { name: 'wowkorea', url: gn('site:wowkorea.jp') },
     { name: 'danmee', url: 'https://danmee.jp/feed/' },
+  ]},
+  { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
+    { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja' },
+    { name: 'GameWith', url: 'https://gamewith.jp/pokemongo/feed' },   // GoogleのサーバーからはHTTP 403で取れないことがある
+    { name: 'ポケモンGO', url: gn('ポケモンGO') },
   ]},
 ];
 
