@@ -142,14 +142,37 @@ function call(fn) {
   return get().catch(() => new Promise(r => setTimeout(r, 2500)).then(get));   // たまに一瞬こけるので1回だけやり直す
 }
 
-async function load(force) {
+// 前回の記事を端末に保存しておいて、開いた瞬間にまず出す。新しいのは裏で取りに行く
+function loadCache() {
   try {
-    if (!TABS.length) { const t = await call('getTabs'); TABS = typeof t === 'string' ? JSON.parse(t) : t; }
-    const raw = await call(force ? 'refreshNow' : 'getData');
-    DATA = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    render();
+    const t = ls('tabs'), d = ls('data');
+    if (t && d) { TABS = JSON.parse(t); DATA = JSON.parse(d); return true; }
+  } catch (e) {}
+  return false;
+}
+function saveCache() {
+  try { ls('tabs', JSON.stringify(TABS)); ls('data', JSON.stringify(DATA)); } catch (e) {}
+}
+let pending = null;   // 届いたけどまだ画面に出していない新データ
+function applyPending() { if (!pending) return; DATA = pending; pending = null; saveCache(); render(); }
+
+async function load(force) {
+  const hadCache = !!DATA;
+  try {
+    const [t, raw] = await Promise.all([
+      TABS.length && !force ? Promise.resolve(TABS) : call('getTabs'),
+      call(force ? 'refreshNow' : 'getData'),
+    ]);
+    const tabs = typeof t === 'string' ? JSON.parse(t) : t;
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!hadCache) { TABS = tabs; DATA = data; saveCache(); render(); return; }
+    if (data.updated === DATA.updated && !force) return;      // 変わってない
+    TABS = tabs; pending = data;
+    if (force || window.scrollY < 80) applyPending();          // 上にいるなら静かに差し替え
+    else toast('新しい記事あり。↻で入れ替え');
   } catch (e) {
-    document.getElementById('main').innerHTML = '<div class="empty">読み込めなかった。<br>' + esc(String(e)) + '</div>';
+    if (!hadCache) document.getElementById('main').innerHTML = '<div class="empty">読み込めなかった。<br>' + esc(String(e)) + '</div>';
+    else toast('更新できなかった（前回のを表示中）');
   }
 }
 
@@ -262,7 +285,7 @@ function hm(ms) { const d = new Date(ms); return d.getHours() + ':' + String(d.g
 function ago(ms) { const m = Math.round((Date.now() - ms) / 60000); if (m < 1) return 'たった今'; if (m < 60) return m + '分前'; const h = Math.round(m / 60); if (h < 24) return h + '時間前'; return Math.round(h / 24) + '日前'; }
 function toast(s) { const t = document.getElementById('toast'); t.textContent = s; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
 
-document.getElementById('fab').onclick = async () => { const b = document.getElementById('fab'); b.classList.add('spin'); await load(false); b.classList.remove('spin'); toast('更新した'); };
+document.getElementById('fab').onclick = async () => { const b = document.getElementById('fab'); if (pending) { applyPending(); window.scrollTo(0, 0); toast('入れ替えた'); return; } b.classList.add('spin'); await load(false); b.classList.remove('spin'); toast('更新した'); };
 document.getElementById('gear').onclick = () => { document.getElementById('mute').value = mute.join('\n'); renderMutedSrc(); document.getElementById('sheet').classList.add('on'); };
 document.getElementById('sheet').onclick = e => { if (e.target.id === 'sheet') e.target.classList.remove('on'); };
 document.getElementById('save').onclick = () => { mute = document.getElementById('mute').value.split('\n').map(s => s.trim()).filter(Boolean); ls('mute', mute.join('\n')); document.getElementById('sheet').classList.remove('on'); renderList(); toast('保存した'); };
@@ -332,6 +355,7 @@ function switchTab(dir) {
   }, { passive: true });
 })();
 
+if (loadCache()) render();
 load(false);
 </script>
 </body>
