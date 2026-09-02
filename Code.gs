@@ -332,6 +332,7 @@ function tag_(b, name) {
 }
 
 // DELISH KITCHEN の記事一覧（RSSが無いのでページから拾う）
+//   カードの中身: <img alt=タイトル> / <p class="text-h3">タイトル</p> / <div class="description">要約</div>
 function parseDelish_(html) {
   const out = [];
   const seen = {};
@@ -340,11 +341,18 @@ function parseDelish_(html) {
   while ((m = re.exec(html)) && out.length < 30) {
     const url = 'https://delishkitchen.tv' + m[1];
     if (seen[url]) continue;
-    const title = decode_(m[3].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
-    if (!title || title.length < 6) continue;
+    const card = m[3];
+    const h = card.match(/class="text-h3"[^>]*>([\s\S]*?)<\/p>/) || card.match(/<img[^>]*alt="([^"]+)"/);
+    const title = h ? stripHtml_(h[1]) : '';
+    if (!title || title.length < 4) continue;
+    const dm = card.match(/class="description[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    let x = dm ? stripHtml_(dm[1]) : '';
+    if (x.length > SUMMARY_LEN) x = x.slice(0, SUMMARY_LEN) + '…';
     seen[url] = 1;
-    const img = (m[3].match(/<img[^>]*src="([^"]+)"/) || [])[1] || '';
-    out.push({ t: title, u: url, d: Date.now() - out.length * 3600000, i: img, x: '', s: '' });
+    // 画像は遅延読み込みで src が "//:0" のことがあるので data-src / srcset も見る
+    const im = card.match(/<img[^>]*(?:data-src|src)="(https?:[^"\s]+)"/) || card.match(/srcset="(https?:[^"\s]+)/);
+    const img = im ? decode_(im[1]) : '';
+    out.push({ t: title, u: url, d: Date.now() - out.length * 3600000, i: img, x: x, s: '' });
   }
   return out;
 }

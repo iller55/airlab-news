@@ -16,9 +16,9 @@
     --top: env(safe-area-inset-top, 0px); --bot: env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--fg); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 16px; }
+  html, body { margin: 0; overflow-x: hidden; max-width: 100vw; background: var(--bg); color: var(--fg); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 16px; }
   a { color: inherit; text-decoration: none; }
-  header { position: sticky; top: 0; z-index: 10; background: rgba(16,18,20,.92); backdrop-filter: blur(12px); padding-top: var(--top); border-bottom: 1px solid var(--line); }
+  header { position: fixed; top: 0; left: 0; right: 0; z-index: 10; background: rgba(16,18,20,.92); backdrop-filter: blur(12px); padding-top: var(--top); border-bottom: 1px solid var(--line); }
   .bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px 6px; }
   .bar h1 { font-size: 17px; margin: 0; letter-spacing: .04em; font-weight: 700; }
   .bar .upd { font-size: 12px; color: var(--dim); margin-left: auto; }
@@ -36,6 +36,7 @@
   .wx .day b { display: block; color: var(--fg); font-size: 12px; white-space: nowrap; }
   .wx .radar { flex: 0 0 auto; margin-left: 4px; padding: 8px 10px; border-radius: 8px; background: #23364f; color: #bcd6ff; font-size: 12px; font-weight: 700; }
   .wxtext { padding: 6px 14px 8px; font-size: 12px; color: var(--dim); background: var(--card); border-bottom: 1px solid var(--line); }
+  body { padding-top: var(--head, 96px); }   /* header の高さぶん。JSで実測して --head に入れる */
   main { padding-bottom: calc(40px + var(--bot)); }
   .sec { padding: 14px 14px 4px; font-size: 13px; font-weight: 700; color: var(--dim); letter-spacing: .06em; }
   .item { display: flex; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--line); }
@@ -129,10 +130,13 @@ async function load(force) {
 
 // ---------- 描画 ----------
 function render() {
-  renderTabs(); renderWeather(); renderList();
+  renderTabs(); renderWeather(); renderList(); fitHeader();
   document.getElementById('upd').textContent = '更新 ' + hm(DATA.updated);
   document.getElementById('errs').textContent = ((DATA.errors || []).length ? '取れなかった媒体: ' + DATA.errors.join(' / ') + '\n' : '') + ((DATA.timing || []).length ? '取得時間: ' + DATA.timing.join(' / ') : '');
 }
+
+function fitHeader() { document.documentElement.style.setProperty('--head', document.querySelector('header').offsetHeight + 'px'); }
+window.addEventListener('resize', fitHeader);
 
 function renderTabs() {
   const all = [{ id: 'top', name: 'トップ', color: '#e0443f' }].concat(TABS);
@@ -228,6 +232,23 @@ document.getElementById('sheet').onclick = e => { if (e.target.id === 'sheet') e
 document.getElementById('save').onclick = () => { mute = document.getElementById('mute').value.split('\n').map(s => s.trim()).filter(Boolean); ls('mute', mute.join('\n')); document.getElementById('sheet').classList.remove('on'); renderList(); toast('保存した'); };
 document.getElementById('clearRead').onclick = () => { read = new Set(); ls('read', '[]'); renderList(); toast('既読を消した'); };
 document.getElementById('pull').onclick = async () => { document.getElementById('sheet').classList.remove('on'); const b = document.getElementById('fab'); b.classList.add('spin'); toast('集め直してる（20秒くらい）'); await load(true); b.classList.remove('spin'); toast('取り直した'); };
+
+// ---------- スワイプでタブ切り替え（本文の上で左右にはらう） ----------
+function switchTab(dir) {
+  const ids = ['top'].concat(TABS.map(t => t.id));
+  const i = ids.indexOf(cur); const n = i + dir;
+  if (n < 0 || n >= ids.length) return;
+  cur = ids[n]; ls('tab', cur); renderTabs(); renderList(); window.scrollTo(0, 0);
+}
+(function () {
+  let sx = 0, sy = 0, st = 0;
+  const area = document.getElementById('main');
+  area.addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now(); }, { passive: true });
+  area.addEventListener('touchend', e => {
+    const t = e.changedTouches[0]; const dx = t.clientX - sx; const dy = t.clientY - sy;
+    if (Date.now() - st < 600 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) switchTab(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
 
 load(false);
 </script>
