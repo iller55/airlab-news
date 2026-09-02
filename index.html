@@ -64,7 +64,7 @@
   .sheet .row { display: flex; gap: 8px; margin-top: 10px; }
   .sheet button { flex: 1; padding: 12px; border-radius: 10px; border: 0; font-size: 15px; font-weight: 700; background: #2a2f37; color: var(--fg); }
   .sheet button.pri { background: var(--acc); color: #fff; }
-  .err { padding: 8px 14px; font-size: 11px; color: #a77; }
+  .err { padding: 8px 14px; font-size: 11px; color: #a77; white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -112,7 +112,8 @@ function call(fn) {
   }
   const api = { getTabs: 'tabs', getData: 'data', refreshNow: 'refresh' }[fn];
   const url = LOCAL ? (fn === 'getTabs' ? 'tabs.json' : 'data.json') : API_URL + '?api=' + api + '&t=' + Date.now();
-  return fetch(url).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+  const get = () => fetch(url).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+  return get().catch(() => new Promise(r => setTimeout(r, 2500)).then(get));   // たまに一瞬こけるので1回だけやり直す
 }
 
 async function load(force) {
@@ -130,7 +131,7 @@ async function load(force) {
 function render() {
   renderTabs(); renderWeather(); renderList();
   document.getElementById('upd').textContent = '更新 ' + hm(DATA.updated);
-  document.getElementById('errs').textContent = (DATA.errors || []).length ? '取れなかった媒体: ' + DATA.errors.join(' / ') : '';
+  document.getElementById('errs').textContent = ((DATA.errors || []).length ? '取れなかった媒体: ' + DATA.errors.join(' / ') + '\n' : '') + ((DATA.timing || []).length ? '取得時間: ' + DATA.timing.join(' / ') : '');
 }
 
 function renderTabs() {
