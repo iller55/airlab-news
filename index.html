@@ -125,6 +125,7 @@ let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
 let read = new Set(JSON.parse(ls('read') || '[]'));
 let muteSrc = new Set(JSON.parse(ls('muteSrc') || '[]'));
 let hidden = new Set(JSON.parse(ls('hidden') || '[]'));
+let seen = new Set(JSON.parse(ls('seen') || '[]'));   // 「最新」に出したことがある記事
 function ls(k, v) { try { if (v === undefined) return localStorage.getItem('aln_' + k); localStorage.setItem('aln_' + k, v); } catch (e) { return null; } }
 
 // ---------- サーバー呼び出し ----------
@@ -196,13 +197,18 @@ function renderList() {
       html += clusters.slice(0, 5).map(c => `<div class="cluster"><a class="ti" href="${c[0].u}" target="_blank" data-u="${c[0].u}">${esc(c[0].t)}</a><div class="src">${c.map(it => `<a href="${it.u}" target="_blank" data-u="${it.u}">${esc(it.s)}</a>`).join('')}</div></div>`).join('');
     }
     const used = new Set(clusters.flat().map(it => it.u));
+    // 「最新」は、前に出した記事（seen）と既読を後ろに回して、開くたびに顔ぶれが変わるようにする
+    const fresh = it => !seen.has(it.u) && !read.has(it.u);
+    const pick = (items, n) => { const a = items.filter(fresh); const b = items.filter(it => !fresh(it)); return a.concat(b).slice(0, n); };
     const mix = [];
-    const local = visible(DATA.tabs.local || []).slice(0, 4);
-    mix.push(...local.map(it => ({ ...it, tag: '鳥取県' })));
-    mix.push(...japan.filter(it => !used.has(it.u)).slice(0, 12));
-    TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; mix.push(...visible(DATA.tabs[t.id] || []).slice(0, 2).map(it => ({ ...it, tag: t.name }))); });
-    mix.sort((a, b) => b.d - a.d);
+    mix.push(...pick(visible(DATA.tabs.local || []), 4).map(it => ({ ...it, tag: '鳥取県' })));
+    mix.push(...pick(japan.filter(it => !used.has(it.u)), 10));
+    TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; mix.push(...pick(visible(DATA.tabs[t.id] || []), 3).map(it => ({ ...it, tag: t.name }))); });
+    mix.sort((a, b) => (fresh(b) - fresh(a)) || (b.d - a.d));
     html += '<div class="sec">最新</div>' + mix.map(card).join('');
+    mix.forEach(it => seen.add(it.u));
+    if (seen.size > 600) seen = new Set([...seen].slice(-450));
+    ls('seen', JSON.stringify([...seen]));
   } else {
     const items = visible(DATA.tabs[cur] || []);
     html = items.length ? items.map(card).join('') : '<div class="empty">まだ記事がない</div>';
@@ -260,7 +266,7 @@ document.getElementById('fab').onclick = async () => { const b = document.getEle
 document.getElementById('gear').onclick = () => { document.getElementById('mute').value = mute.join('\n'); renderMutedSrc(); document.getElementById('sheet').classList.add('on'); };
 document.getElementById('sheet').onclick = e => { if (e.target.id === 'sheet') e.target.classList.remove('on'); };
 document.getElementById('save').onclick = () => { mute = document.getElementById('mute').value.split('\n').map(s => s.trim()).filter(Boolean); ls('mute', mute.join('\n')); document.getElementById('sheet').classList.remove('on'); renderList(); toast('保存した'); };
-document.getElementById('clearRead').onclick = () => { read = new Set(); hidden = new Set(); ls('read', '[]'); ls('hidden', '[]'); renderList(); toast('既読と「この記事だけ隠す」を消した'); };
+document.getElementById('clearRead').onclick = () => { read = new Set(); hidden = new Set(); seen = new Set(); ls('read', '[]'); ls('hidden', '[]'); ls('seen', '[]'); renderList(); toast('既読・非表示・表示履歴を消した'); };
 document.getElementById('pull').onclick = async () => { document.getElementById('sheet').classList.remove('on'); const b = document.getElementById('fab'); b.classList.add('spin'); toast('集め直してる（20秒くらい）'); await load(true); b.classList.remove('spin'); toast('取り直した'); };
 
 // ---------- 長押しでミュートメニュー ----------
