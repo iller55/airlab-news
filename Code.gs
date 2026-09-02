@@ -161,7 +161,13 @@ function setup() {
 
 // ============================================================
 // 収集（トリガーで30分ごと）
+//   ・6媒体ずつまとめて取りに行く（1つが遅くても全体が止まらない）
+//   ・全体で4分を超えたら残りは諦めて、前回の記事を使う
+//   ・前回のキャッシュと合流させるので、1回取れなくても記事が消えない
 // ============================================================
+const FETCH_CHUNK = 6;
+const FETCH_BUDGET_MS = 240000;
+
 function refresh() {
   const start = Date.now();
   const reqs = [];
@@ -172,17 +178,13 @@ function refresh() {
     meta.push({ tab: tab.id, feed: f });
   }));
 
-  let resps = [];
-  try { resps = UrlFetchApp.fetchAll(reqs); }
-  catch (err) { Logger.log('fetchAll error: ' + err); }
-
   const cutoff = Date.now() - MAX_AGE_DAYS * 86400000;
   const byTab = {};
   const errors = [];
+  const timing = [];
   TABS.forEach(t => byTab[t.id] = []);
 
-  resps.forEach((r, i) => {
-    const m = meta[i];
+  const handle = (m, r) => {
     try {
       const code = r.getResponseCode();
       if (code !== 200) { errors.push(m.feed.name + ' HTTP ' + code); return; }
@@ -195,7 +197,30 @@ function refresh() {
         byTab[m.tab].push(it);
       });
     } catch (err) { errors.push(m.feed.name + ' ' + err); }
-  });
+  };
+
+  for (let i = 0; i < reqs.length; i += FETCH_CHUNK) {
+    if (Date.now() - start > FETCH_BUDGET_MS) {
+      errors.push('時間切れ: ' + meta.slice(i).map(m => m.feed.name).join(','));
+      break;
+    }
+    const names = meta.slice(i, i + FETCH_CHUNK).map(m => m.feed.name).join(',');
+    const t0 = Date.now();
+    let rs = [];
+    try { rs = UrlFetchApp.fetchAll(reqs.slice(i, i + FETCH_CHUNK)); }
+    catch (err) { errors.push('fetchAll ' + names + ' ' + err); continue; }
+    timing.push(names + ' ' + (Date.now() - t0) + 'ms');
+    rs.forEach((r, j) => handle(meta[i + j], r));
+  }
+
+  // 前回のキャッシュと合流（取れなかった媒体の記事を残す）
+  let old = null;
+  try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
+  if (old && old.tabs) {
+    Object.keys(byTab).forEach(id => {
+      (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff) byTab[id].push(it); });
+    });
+  }
 
   // タブ内の重複を消して新しい順に
   Object.keys(byTab).forEach(id => {
@@ -211,10 +236,11 @@ function refresh() {
     tabs: byTab,
     weather: fetchWeather_(),
     errors: errors,
+    timing: timing,
     took: Date.now() - start,
   };
   writeCache_(JSON.stringify(data));
-  Logger.log('refresh 完了 ' + data.took + 'ms, errors: ' + errors.join(' / '));
+  Logger.log('refresh 完了 ' + data.took + 'ms, errors: ' + errors.join(' / ') + ' | ' + timing.join(' | '));
 }
 
 // ============================================================
