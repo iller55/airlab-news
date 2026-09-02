@@ -57,6 +57,11 @@ const TABS = [
     { name: 'テクノエッジ', url: 'https://www.techno-edge.net/rss20/index.rdf' },
     { name: 'BRIDGE', url: 'https://thebridge.jp/feed' },
   ]},
+  { id: 'claude', name: 'Claude', color: '#c96442', feeds: [
+    { name: 'Claude', url: gn('Anthropic Claude') },
+    { name: 'Claude Code', url: gn('Claude Code') },
+    { name: 'Anthropic', url: gn('Anthropic') },
+  ]},
   { id: 'gizmodo', name: 'ギズモード', color: '#d94b4b', feeds: [
     { name: 'ギズモード', url: 'https://www.gizmodo.jp/feed/index.xml' },
   ]},
@@ -363,6 +368,7 @@ function finishItem_(it, content) {
   if (gm && /news\.google\.com/.test(it.u)) { it.t = gm[1].trim(); it.s = it.s || gm[2].trim(); }
   it.t = decode_(it.t).replace(/\s+/g, ' ').trim();
   if (/^[\w.-]+\.[a-z]{2,}$/i.test(it.s)) it.s = '';        // 媒体名がドメインだけなら捨てて feed 名を使う
+  it.s = String(it.s).split(/\s*[|｜]\s*/)[0].trim().slice(0, 24);   // 「A | B | C」みたいに長い媒体名は最初だけ
   if (!it.i) { const im = (it.x + content).match(/<img[^>]*src="(https?:[^"]+)"/i); if (im) it.i = im[1]; }
   let x = stripHtml_(it.x || content || '');
   if (/news\.google\.com/.test(it.u)) x = '';       // Googleニュースの要約はリンク羅列なので捨てる
