@@ -223,11 +223,20 @@ function renderList() {
     // 「最新」は、前に出した記事（seen）と既読を後ろに回して、開くたびに顔ぶれが変わるようにする
     const fresh = it => !seen.has(it.u) && !read.has(it.u);
     const pick = (items, n) => { const a = items.filter(fresh); const b = items.filter(it => !fresh(it)); return a.concat(b).slice(0, n); };
+    // タブごとに候補を作って、順繰りに1本ずつ混ぜる（時間順にすると、記事の多い媒体ばかり上に来る）
+    const groups = [];
+    groups.push(pick(visible(DATA.tabs.local || []), 4).map(it => ({ ...it, tag: '鳥取県' })));
+    groups.push(pick(japan.filter(it => !used.has(it.u)), 8));
+    TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; groups.push(pick(visible(DATA.tabs[t.id] || []), 3).map(it => ({ ...it, tag: t.name }))); });
+    const opens = (parseInt(ls('opens') || '0', 10) + 1) % 1000; ls('opens', String(opens));
+    const start = opens % groups.length;                      // 開くたびに先頭のタブをずらす
+    const order = groups.slice(start).concat(groups.slice(0, start));
     const mix = [];
-    mix.push(...pick(visible(DATA.tabs.local || []), 4).map(it => ({ ...it, tag: '鳥取県' })));
-    mix.push(...pick(japan.filter(it => !used.has(it.u)), 10));
-    TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; mix.push(...pick(visible(DATA.tabs[t.id] || []), 3).map(it => ({ ...it, tag: t.name }))); });
-    mix.sort((a, b) => (fresh(b) - fresh(a)) || (b.d - a.d));
+    for (let i = 0; mix.length < 60; i++) {
+      let any = false;
+      order.forEach(g => { if (g[i]) { mix.push(g[i]); any = true; } });
+      if (!any) break;
+    }
     html += '<div class="sec">最新</div>' + mix.map(card).join('');
     mix.forEach(it => seen.add(it.u));
     if (seen.size > 600) seen = new Set([...seen].slice(-450));
