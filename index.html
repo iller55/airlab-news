@@ -46,6 +46,14 @@
   .item .mt { font-size: 12px; color: var(--dim); margin-top: 6px; }
   .item img { flex: 0 0 96px; width: 96px; height: 72px; object-fit: cover; border-radius: 8px; background: #222; }
   .item.read { opacity: .45; }
+  .item, .cluster { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+  .sheet .chip { padding: 9px 12px; border-radius: 20px; background: #2a2f37; color: var(--fg); font-size: 14px; font-weight: 600; border: 0; flex: none; }
+  .sheet .chip.on { background: #6b2b2b; color: #ffd9d9; }
+  .sheet .chip.src { background: #23364f; color: #bcd6ff; }
+  .mtitle { font-size: 14px; line-height: 1.4; color: var(--dim); margin: 0 0 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .mutedlist { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+  .sheet .mutedlist .chip { font-size: 12px; padding: 6px 10px; }
   .cluster { margin: 8px 14px; padding: 12px 14px; border-radius: 12px; background: linear-gradient(160deg, #1d2634, #171b22); border: 1px solid #2b3646; }
   .cluster .ti { font-size: 17px; font-weight: 700; line-height: 1.4; }
   .cluster .src { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -82,13 +90,27 @@
 <button class="fab" id="fab" title="更新">↻</button>
 <div class="toast" id="toast"></div>
 
+<div class="sheet" id="msheet">
+  <div class="box">
+    <h2>ミュート</h2>
+    <p class="mtitle" id="mtitle"></p>
+    <p>言葉を押すと、その言葉が入った記事を隠す</p>
+    <div class="chips" id="mchips"></div>
+    <div class="row">
+      <button id="mhide">この記事だけ隠す</button>
+      <button id="msrc">この媒体を隠す</button>
+    </div>
+  </div>
+</div>
 <div class="sheet" id="sheet">
   <div class="box">
     <h2>ミュートする言葉</h2>
     <p>1行に1つ。タイトルにこの言葉が入っている記事は表示しません。</p>
     <textarea id="mute" placeholder="例）&#10;占い&#10;PR"></textarea>
+    <p style="margin-top:10px">隠している媒体（押すと戻す）</p>
+    <div class="mutedlist" id="mutedSrc"></div>
     <div class="row">
-      <button id="clearRead">既読をリセット</button>
+      <button id="clearRead">既読を消す</button>
       <button id="pull">いま取り直す</button>
       <button class="pri" id="save">保存</button>
     </div>
@@ -101,6 +123,8 @@
 let DATA = null, TABS = [], cur = ls('tab') || 'top';
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
 let read = new Set(JSON.parse(ls('read') || '[]'));
+let muteSrc = new Set(JSON.parse(ls('muteSrc') || '[]'));
+let hidden = new Set(JSON.parse(ls('hidden') || '[]'));
 function ls(k, v) { try { if (v === undefined) return localStorage.getItem('aln_' + k); localStorage.setItem('aln_' + k, v); } catch (e) { return null; } }
 
 // ---------- サーバー呼び出し ----------
@@ -157,7 +181,7 @@ function renderWeather() {
 }
 
 function visible(items) {
-  return items.filter(it => !mute.some(m => it.t.includes(m)));
+  return items.filter(it => !hidden.has(it.u) && !muteSrc.has(it.s) && !mute.some(m => it.t.includes(m)));
 }
 
 function renderList() {
@@ -168,6 +192,7 @@ function renderList() {
     const clusters = clusterize(japan);
     if (clusters.length) {
       html += '<div class="sec">いま大きい話</div>';
+      clusters.forEach(c => c.forEach(it => BYURL[it.u] = it));
       html += clusters.slice(0, 5).map(c => `<div class="cluster"><a class="ti" href="${c[0].u}" target="_blank" data-u="${c[0].u}">${esc(c[0].t)}</a><div class="src">${c.map(it => `<a href="${it.u}" target="_blank" data-u="${it.u}">${esc(it.s)}</a>`).join('')}</div></div>`).join('');
     }
     const used = new Set(clusters.flat().map(it => it.u));
@@ -183,10 +208,15 @@ function renderList() {
     html = items.length ? items.map(card).join('') : '<div class="empty">まだ記事がない</div>';
   }
   main.innerHTML = html || '<div class="empty">表示できる記事がない</div>';
-  main.querySelectorAll('[data-u]').forEach(a => a.addEventListener('click', () => markRead(a.dataset.u)));
+  main.querySelectorAll('[data-u]').forEach(a => {
+    a.addEventListener('click', e => { if (suppressClick) { e.preventDefault(); suppressClick = false; return; } markRead(a.dataset.u); });
+    attachLongPress(a);
+  });
 }
 
+const BYURL = {};
 function card(it) {
+  BYURL[it.u] = it;
   const img = it.i ? `<img src="${it.i}" loading="lazy" alt="" onerror="this.remove()">` : '';
   return `<a class="item ${read.has(it.u) ? 'read' : ''}" href="${it.u}" target="_blank" data-u="${it.u}"><div class="tx"><div class="ti">${esc(it.t)}</div>${it.x ? `<div class="sm">${esc(it.x)}</div>` : ''}<div class="mt">${it.tag && it.tag !== it.s ? `<b>${esc(it.tag)}</b> · ` : ''}${esc(it.s)} · ${ago(it.d)}</div></div>${img}</a>`;
 }
@@ -227,11 +257,57 @@ function ago(ms) { const m = Math.round((Date.now() - ms) / 60000); if (m < 1) r
 function toast(s) { const t = document.getElementById('toast'); t.textContent = s; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
 
 document.getElementById('fab').onclick = async () => { const b = document.getElementById('fab'); b.classList.add('spin'); await load(false); b.classList.remove('spin'); toast('更新した'); };
-document.getElementById('gear').onclick = () => { document.getElementById('mute').value = mute.join('\n'); document.getElementById('sheet').classList.add('on'); };
+document.getElementById('gear').onclick = () => { document.getElementById('mute').value = mute.join('\n'); renderMutedSrc(); document.getElementById('sheet').classList.add('on'); };
 document.getElementById('sheet').onclick = e => { if (e.target.id === 'sheet') e.target.classList.remove('on'); };
 document.getElementById('save').onclick = () => { mute = document.getElementById('mute').value.split('\n').map(s => s.trim()).filter(Boolean); ls('mute', mute.join('\n')); document.getElementById('sheet').classList.remove('on'); renderList(); toast('保存した'); };
-document.getElementById('clearRead').onclick = () => { read = new Set(); ls('read', '[]'); renderList(); toast('既読を消した'); };
+document.getElementById('clearRead').onclick = () => { read = new Set(); hidden = new Set(); ls('read', '[]'); ls('hidden', '[]'); renderList(); toast('既読と「この記事だけ隠す」を消した'); };
 document.getElementById('pull').onclick = async () => { document.getElementById('sheet').classList.remove('on'); const b = document.getElementById('fab'); b.classList.add('spin'); toast('集め直してる（20秒くらい）'); await load(true); b.classList.remove('spin'); toast('取り直した'); };
+
+// ---------- 長押しでミュートメニュー ----------
+let suppressClick = false;
+function attachLongPress(el) {
+  let timer = null;
+  const start = () => { timer = setTimeout(() => { timer = null; suppressClick = true; openMuteMenu(el.dataset.u); }, 500); };
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  el.addEventListener('touchstart', start, { passive: true });
+  el.addEventListener('touchmove', cancel, { passive: true });
+  el.addEventListener('touchend', cancel, { passive: true });
+  el.addEventListener('touchcancel', cancel, { passive: true });
+  el.addEventListener('contextmenu', e => { e.preventDefault(); openMuteMenu(el.dataset.u); });
+}
+// タイトルを「ミュートに使えそうな言葉」に分ける（記号で切って、さらに漢字・カタカナ・英数のかたまりを拾う）
+function words(t) {
+  const out = []; const seen = new Set();
+  const add = w => { w = w.trim(); if (w.length >= 2 && w.length <= 14 && !seen.has(w)) { seen.add(w); out.push(w); } };
+  t.split(/[\s　、。・「」『』（）()【】\[\]!?！？:：\-–—~〜…,.\/｜|"”“'…]+/).forEach(chunk => {
+    if (chunk.length <= 10) add(chunk);
+    (chunk.match(/[\u4e00-\u9fff\u30a0-\u30ffA-Za-z0-9ー]+/g) || []).forEach(add);
+  });
+  return out.slice(0, 14);
+}
+let menuUrl = '';
+function openMuteMenu(u) {
+  const it = BYURL[u]; if (!it) return;
+  menuUrl = u;
+  document.getElementById('mtitle').textContent = it.t;
+  document.getElementById('mchips').innerHTML = words(it.t).map(w => `<button class="chip ${mute.includes(w) ? 'on' : ''}" data-w="${esc(w)}">${esc(w)}</button>`).join('');
+  document.getElementById('msrc').textContent = '「' + it.s + '」を隠す';
+  document.getElementById('msheet').classList.add('on');
+  document.querySelectorAll('#mchips .chip').forEach(b => b.onclick = () => {
+    const w = b.dataset.w;
+    if (mute.includes(w)) { mute = mute.filter(x => x !== w); b.classList.remove('on'); toast('「' + w + '」のミュートを外した'); }
+    else { mute.push(w); b.classList.add('on'); toast('「' + w + '」をミュート'); }
+    ls('mute', mute.join('\n')); renderList();
+  });
+}
+document.getElementById('msheet').onclick = e => { if (e.target.id === 'msheet') e.target.classList.remove('on'); };
+document.getElementById('mhide').onclick = () => { hidden.add(menuUrl); if (hidden.size > 800) hidden = new Set([...hidden].slice(-600)); ls('hidden', JSON.stringify([...hidden])); document.getElementById('msheet').classList.remove('on'); renderList(); toast('この記事を隠した'); };
+document.getElementById('msrc').onclick = () => { const it = BYURL[menuUrl]; if (!it) return; muteSrc.add(it.s); ls('muteSrc', JSON.stringify([...muteSrc])); document.getElementById('msheet').classList.remove('on'); renderList(); toast('「' + it.s + '」を隠した'); };
+function renderMutedSrc() {
+  const el = document.getElementById('mutedSrc');
+  el.innerHTML = muteSrc.size ? [...muteSrc].map(s => `<button class="chip src" data-s="${esc(s)}">${esc(s)} ×</button>`).join('') : '<span style="font-size:12px;color:var(--dim)">なし</span>';
+  el.querySelectorAll('.chip').forEach(b => b.onclick = () => { muteSrc.delete(b.dataset.s); ls('muteSrc', JSON.stringify([...muteSrc])); renderMutedSrc(); renderList(); toast('「' + b.dataset.s + '」を戻した'); });
+}
 
 // ---------- スワイプでタブ切り替え（本文の上で左右にはらう） ----------
 function switchTab(dir) {
