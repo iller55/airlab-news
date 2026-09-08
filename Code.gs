@@ -63,10 +63,6 @@ const TABS = [
   { id: 'rocket', name: 'ロケニュー', color: '#e8862a', feeds: [
     { name: 'ロケットニュース24', url: 'https://rocketnews24.com/feed/' },
   ]},
-  { id: 'delish', name: 'デリッシュキッチン', color: '#3fae6a', feeds: [
-    { name: 'DELISH KITCHEN', url: 'https://delishkitchen.tv/articles', type: 'delish' },
-    { name: 'DELISH KITCHEN', url: gn('デリッシュキッチン') },
-  ]},
   { id: 'mens', name: 'メンズスタイル', color: '#3b8fd9', feeds: [
     { name: "MEN'S NON-NO", url: 'https://www.mensnonno.jp/feed/' },
     { name: 'GQ JAPAN', url: 'https://www.gqjapan.jp/feed/rss' },
@@ -77,11 +73,6 @@ const TABS = [
     { name: 'レスポンス', url: 'https://response.jp/rss20/index.rdf' },
     { name: 'webCG', url: 'https://www.webcg.net/list/feed/rss' },
     { name: 'くるまのニュース', url: 'https://kuruma-news.jp/feed' },
-  ]},
-  { id: 'fashion', name: 'ファッション', color: '#e8862a', feeds: [
-    { name: 'WWD JAPAN', url: 'https://www.wwdjapan.com/feed' },
-    { name: 'FASHIONSNAP', url: 'https://www.fashionsnap.com/rss.xml' },
-    { name: 'Fashion Press', url: gn('site:fashion-press.net') },
   ]},
   { id: 'kpop', name: 'K-POP', color: '#3fae6a', feeds: [
     { name: 'Kstyle', url: gn('site:news.kstyle.com') },
