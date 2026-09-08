@@ -125,7 +125,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-08c';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-08d';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 // ---------- 状態 ----------
 let DATA = null, TABS = [], cur = ls('tab') || 'top';
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
@@ -301,7 +301,7 @@ function hm(ms) { const d = new Date(ms); return d.getHours() + ':' + String(d.g
 function ago(ms) { const m = Math.round((Date.now() - ms) / 60000); if (m < 1) return 'たった今'; if (m < 60) return m + '分前'; const h = Math.round(m / 60); if (h < 24) return h + '時間前'; return Math.round(h / 24) + '日前'; }
 function toast(s) { const t = document.getElementById('toast'); t.textContent = s; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
 
-document.getElementById('fab').onclick = async () => { const b = document.getElementById('fab'); if (pending) { applyPending(); window.scrollTo(0, 0); toast('入れ替えた'); return; } b.classList.add('spin'); await load(false); b.classList.remove('spin'); toast('更新した'); };
+document.getElementById('fab').onclick = async () => { const b = document.getElementById('fab'); if (pending) { applyPending(); window.scrollTo(0, 0); toast('入れ替えた'); return; } b.classList.add('spin'); const before = DATA && DATA.updated; await load(false); if (pending) applyPending(); renderList(); window.scrollTo(0, 0); b.classList.remove('spin'); toast(DATA && DATA.updated !== before ? '新しい記事を取ってきた' : '並べ直した（新しい記事はまだ）'); };
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('gear').onclick = () => { document.getElementById('mute').value = mute.join('\n'); renderMutedSrc(); document.getElementById('sheet').classList.add('on'); };
 document.getElementById('sheet').onclick = e => { if (e.target.id === 'sheet') e.target.classList.remove('on'); };
@@ -372,7 +372,8 @@ function renderMutedSrc() {
     const go = pull >= TH; y0 = null;
     if (!go) { pull = 0; set(0); return; }
     busy = true; el.style.transition = 'height .15s'; set(TH); label.textContent = '更新中…';
-    try { await load(false); toast('更新した'); } catch (e) { toast('更新できなかった'); }
+    const before = DATA && DATA.updated;
+    try { await load(false); if (pending) applyPending(); renderList(); window.scrollTo(0, 0); toast(DATA && DATA.updated !== before ? '新しい記事を取ってきた' : '並べ直した（新しい記事はまだ）'); } catch (e) { toast('更新できなかった'); }
     pull = 0; set(0); busy = false;
   }, { passive: true });
 })();
