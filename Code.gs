@@ -28,10 +28,10 @@ function gn(q) {
 
 // ---------- K-POP の「これだけ」リスト ----------
 // 英字は前後に英字が無いとき、カタカナは前後にカタカナが無いときだけ当たる（LIVE の IVE、レイアウトの レイ を拾わない）
-const KPOP_GROUPS_EN = ['i-dle', '\\(G\\)I-DLE', 'IVE', 'BABYMONSTER', 'BABY MONSTER', 'ITZY', 'NMIXX', "Baby DON'?T Cry", 'YOUNG POSSE', 'UNCHILD', 'RESCENE'];
-const KPOP_GROUPS_JA = ['アイドゥル', 'アイヴ', 'ベビモン', 'ベモン', 'ベイビーモンスター', 'イッチ', 'エンミックス', 'ベイビー・ドン・クライ', 'ベイビードンクライ', 'ベイビードントクライ', 'ヤングパッシ', 'ヤングポッセ', 'ヤングパシー', 'アンチャイルド', 'リセンヌ'];
+const KPOP_GROUPS_EN = ['i-dle', '\\(G\\)I-DLE', 'IVE', 'BABYMONSTER', 'BABY MONSTER', 'ITZY', 'NMIXX', "Baby DON'?T Cry", 'YOUNG POSSE', 'UNCHILD', 'RESCENE', 'aespa'];
+const KPOP_GROUPS_JA = ['アイドゥル', 'アイヴ', 'ベビモン', 'ベモン', 'ベイビーモンスター', 'イッチ', 'エンミックス', 'ベイビー・ドン・クライ', 'ベイビードンクライ', 'ベイビードントクライ', 'ヤングパッシ', 'ヤングポッセ', 'ヤングパシー', 'アンチャイルド', 'リセンヌ', 'エスパ'];
 const KPOP_MEMBERS_EN = ['Wonyoung', 'Yujin', 'Gaeul', 'Leeseo', 'Yeji', 'Ryujin', 'Chaeryeong', 'Miyeon', 'Minnie', 'Soyeon', 'Yuqi', 'Shuhua', 'Ahyeon', 'Pharita', 'Chiquita', 'Haewon', 'Sullyoon', 'Kyujin', 'Jiwoo', 'Ruka',
-  'Yihyun', 'Kumi', 'Beni', 'Sunhye', 'Yeonjung', 'Jiana', 'Doeun', 'Jieun', 'Heekie', 'Evon', 'Haeun', 'Yeeun', 'Woni', 'Zena'];
+  'Yihyun', 'Kumi', 'Beni', 'Sunhye', 'Yeonjung', 'Jiana', 'Doeun', 'Jieun', 'Heekie', 'Evon', 'Haeun', 'Yeeun', 'Woni', 'Zena', 'Karina', 'Giselle', 'Ningning'];
 const KPOP_MEMBERS_JA = [
   'ミヨン', 'ミンニ', 'ソヨン', 'ウギ', 'シュファ',                          // i-dle
   'ユジン', 'ガウル', 'レイ', 'ウォニョン', 'リズ', 'イソ',                    // IVE
@@ -42,6 +42,7 @@ const KPOP_MEMBERS_JA = [
   'ソネ', 'ヨンジョン', 'ジアナ', 'ドウン', 'ジウン',                          // YOUNG POSSE（DSP、2023 デビュー）
   'イェウン', 'ヒキ', 'ティナ', 'イボン', 'アコ', 'ハウン',                    // UNCHILD（High Up、2026-04-21 デビュー。韓4・日1・中1）
   'ウォニ', 'リヴ', 'ミナミ', 'メイ', 'ゼナ', 'ジェナ',                         // RESCENE（THE MUZE、2024-03-26 デビュー。ZENA は ゼナ/ジェナ 両表記あり）
+  'カリナ', 'ジゼル', 'ウィンター', 'ニンニン',                                // aespa（SM）
 ];
 const KPOP_ONLY = new RegExp(
   '(?<![A-Za-z])(' + KPOP_GROUPS_EN.concat(KPOP_MEMBERS_EN).join('|') + ')(?![A-Za-z])' +
@@ -113,6 +114,7 @@ const TABS = [
     { name: 'YOUNG POSSE', url: gn('"YOUNG POSSE"') },
     { name: 'UNCHILD', url: gn('UNCHILD K-POP') },
     { name: 'RESCENE', url: gn('RESCENE') },
+    { name: 'aespa', url: gn('aespa') },
   ]},
   { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
     { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja', jaOnly: true },   // 英語版の重複は捨てる
