@@ -26,6 +26,22 @@ function gn(q) {
   return 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=ja&gl=JP&ceid=JP:ja';
 }
 
+// ---------- K-POP の「これだけ」リスト ----------
+// 英字は前後に英字が無いとき、カタカナは前後にカタカナが無いときだけ当たる（LIVE の IVE、レイアウトの レイ を拾わない）
+const KPOP_GROUPS_EN = ['i-dle', '\\(G\\)I-DLE', 'IVE', 'BABYMONSTER', 'BABY MONSTER', 'ITZY', 'NMIXX', "Baby DON'?T Cry", 'YOUNG POSSE', 'UNCHILD'];
+const KPOP_GROUPS_JA = ['アイドゥル', 'アイヴ', 'ベビモン', 'ベイビーモンスター', 'イッチ', 'エンミックス', 'ベイビードントクライ', 'ヤングポッセ', 'アンチャイルド'];
+const KPOP_MEMBERS_EN = ['Wonyoung', 'Yujin', 'Gaeul', 'Leeseo', 'Yeji', 'Ryujin', 'Chaeryeong', 'Miyeon', 'Minnie', 'Soyeon', 'Yuqi', 'Shuhua', 'Ahyeon', 'Pharita', 'Chiquita', 'Haewon', 'Sullyoon', 'Kyujin', 'Jiwoo', 'Ruka'];
+const KPOP_MEMBERS_JA = [
+  'ミヨン', 'ミンニ', 'ソヨン', 'ウギ', 'シュファ',                          // i-dle
+  'ユジン', 'ガウル', 'レイ', 'ウォニョン', 'リズ', 'イソ',                    // IVE
+  'ルカ', 'ファリン', 'アサ', 'アヒョン', 'ラミ', 'ローラ', 'チキータ',         // BABYMONSTER
+  'イェジ', 'リア', 'リュジン', 'チェリョン', 'ユナ',                          // ITZY
+  'リリー', 'ヘウォン', 'ソリュン', 'ベイ', 'ジウ', 'キュジン',                // NMIXX
+];
+const KPOP_ONLY = new RegExp(
+  '(?<![A-Za-z])(' + KPOP_GROUPS_EN.concat(KPOP_MEMBERS_EN).join('|') + ')(?![A-Za-z])' +
+  '|(?<![ァ-ヶー])(' + KPOP_GROUPS_JA.concat(KPOP_MEMBERS_JA).join('|') + ')(?![ァ-ヶー])', 'i');
+
 // ---------- タブと媒体 ----------
 const TABS = [
   { id: 'local', name: '鳥取県', color: '#e8862a', feeds: [
@@ -77,7 +93,7 @@ const TABS = [
   ]},
   // K-POP: 好きなグループの話だけ（only に当たらない記事は捨てる。ボーイズはここで消える）
   { id: 'kpop', name: 'K-POP', color: '#3fae6a',
-    only: /(?<![A-Za-z])(i-dle|\(G\)I-DLE|アイドゥル|IVE|アイヴ|BABYMONSTER|BABY MONSTER|ベビモン|ベイビーモンスター|ITZY|イッチ|NMIXX|エンミックス|Baby DON'?T Cry|ベイビードントクライ)(?![A-Za-z])/i,
+    only: KPOP_ONLY,
     feeds: [
     { name: 'Kstyle', url: gn('site:news.kstyle.com') },
     { name: 'Kpop monster', url: 'https://www.kpopmonster.jp/?feed=rss2' },
@@ -89,6 +105,8 @@ const TABS = [
     { name: 'ITZY', url: gn('ITZY') },
     { name: 'NMIXX', url: gn('NMIXX') },
     { name: 'Baby DONT Cry', url: gn('"Baby DONT Cry"') },
+    { name: 'YOUNG POSSE', url: gn('"YOUNG POSSE"') },
+    { name: 'UNCHILD', url: gn('UNCHILD K-POP') },
   ]},
   { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
     { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja', jaOnly: true },   // 英語版の重複は捨てる
