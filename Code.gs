@@ -309,8 +309,18 @@ function parseFeed_(xml) {
   xml = xml.replace(/^\uFEFF/, '').trim();
   if (xml.length > 1500000) throw new Error('too large ' + xml.length);          // 1.5MB超は解析しない（固まる元）
   if (!/<(rss|feed|rdf:RDF)[\s>]/i.test(xml.slice(0, 2000))) throw new Error('not a feed');   // HTMLのエラーページなど
-  try { return parseXml_(xml); }
-  catch (e) { return parseRegex_(xml); }
+  // 100本以上ある媒体は先頭 45 本ぶんで切る（解析時間の節約）
+  const cut = nthIndex_(xml, /<\/(item|entry)>/g, MAX_PER_FEED + 5);
+  if (cut > 0) xml = xml.slice(0, cut);
+  // 文字列を直接読む簡易解析のほうが XmlService より 5〜10 倍速いので、まずそっち。取れなければ XmlService
+  try { const out = parseRegex_(xml); if (out.length) return out; } catch (e) {}
+  return parseXml_(xml);
+}
+
+function nthIndex_(s, re, n) {
+  let m, i = 0;
+  while ((m = re.exec(s))) { if (++i === n) return m.index + m[0].length; }
+  return -1;
 }
 
 function parseXml_(xml) {
