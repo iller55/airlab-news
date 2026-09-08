@@ -205,12 +205,14 @@ function refresh() {
     rs.forEach((r, j) => handle(meta[i + j], r));
   }
 
-  // 前回のキャッシュと合流（取れなかった媒体の記事を残す）
+  // 前回のキャッシュと合流（取れなかった媒体の記事を残す）。ただし今のルールで捨てるものは残さない
+  const jaOnlySrc = {}; TABS.forEach(t => t.feeds.forEach(f => { if (f.jaOnly) jaOnlySrc[f.name] = 1; }));
+  const dropOld_ = it => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t));
   let old = null;
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
   if (old && old.tabs) {
     Object.keys(byTab).forEach(id => {
-      (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff) byTab[id].push(it); });
+      (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff && !dropOld_(it)) byTab[id].push(it); });
     });
   }
 
