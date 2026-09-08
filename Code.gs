@@ -41,7 +41,7 @@ const KPOP_MEMBERS_JA = [
   'イヒョン', 'クミ', 'ミア', 'ベニ',                                          // Baby DONT Cry（P NATION、2025-06 デビュー）
   'ソネ', 'ヨンジョン', 'ジアナ', 'ドウン', 'ジウン',                          // YOUNG POSSE（DSP、2023 デビュー）
   'イェウン', 'ヒキ', 'ティナ', 'イボン', 'アコ', 'ハウン',                    // UNCHILD（High Up、2026-04-21 デビュー。韓4・日1・中1）
-  'ウォニ', 'リヴ', 'ミナミ', 'メイ', 'ゼナ',                                  // RESCENE（THE MUZE、2024-03-26 デビュー）
+  'ウォニ', 'リヴ', 'ミナミ', 'メイ', 'ゼナ', 'ジェナ',                         // RESCENE（THE MUZE、2024-03-26 デビュー。ZENA は ゼナ/ジェナ 両表記あり）
 ];
 const KPOP_ONLY = new RegExp(
   '(?<![A-Za-z])(' + KPOP_GROUPS_EN.concat(KPOP_MEMBERS_EN).join('|') + ')(?![A-Za-z])' +
