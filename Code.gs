@@ -98,6 +98,15 @@ const TABS = [
     { name: 'くるまのニュース', url: 'https://kuruma-news.jp/feed' },
   ]},
   // K-POP: 好きなグループの話だけ（only に当たらない記事は捨てる。ボーイズはここで消える）
+  // JLラングラー: ジープの話だけ（ジーンズの Wrangler を弾く）
+  { id: 'jl', name: 'JLラングラー', color: '#5b7a3a',
+    only: /(?<![A-Za-z])(Jeep|Wrangler|JL|JK|Rubicon|Sahara|Unlimited)(?![A-Za-z])|ジープ|ラングラー|ルビコン|サハラ|アンリミテッド/i,
+    feeds: [
+    { name: 'ラングラー', url: gn('ジープ ラングラー') },
+    { name: 'Wrangler JL', url: gn('Jeep Wrangler JL') },
+    { name: 'ラングラー JL', url: gn('ラングラー JL カスタム') },
+    { name: 'Jeep Japan', url: gn('site:jeep-japan.com') },
+  ]},
   { id: 'kpop', name: 'K-POP', color: '#3fae6a',
     only: KPOP_ONLY,
     feeds: [
