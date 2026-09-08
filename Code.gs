@@ -215,7 +215,7 @@ function refresh() {
         if (!it.t || !it.u) return;
         if (it.d && it.d < cutoff) return;
         if (m.feed.jaOnly && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) return;   // 日本語が無い＝英語版
-        if (m.only && !m.only.test(it.t)) return;                                  // タブの「これだけ」ルール
+        if (m.only && !m.only.test(it.t + ' ' + (it.x || ''))) return;              // タブの「これだけ」ルール（題名＋要約で判定）
         it.s = it.s || m.feed.name;
         if (DROP_SOURCES.indexOf(it.s) >= 0) return;
         byTab[m.tab].push(it);
@@ -240,7 +240,7 @@ function refresh() {
   // 前回のキャッシュと合流（取れなかった媒体の記事を残す）。ただし今のルールで捨てるものは残さない
   const jaOnlySrc = {}; TABS.forEach(t => t.feeds.forEach(f => { if (f.jaOnly) jaOnlySrc[f.name] = 1; }));
   const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
-  const dropOld_ = (id, it) => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t));
+  const dropOld_ = (id, it) => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || '')));
   let old = null;
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
   if (old && old.tabs) {
