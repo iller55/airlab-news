@@ -306,7 +306,9 @@ function refreshBody_(start) {
 // フィード解析（RSS2 / Atom / RSS1.0 RDF）
 // ============================================================
 function parseFeed_(xml) {
-  xml = xml.replace(/^﻿/, '').trim();
+  xml = xml.replace(/^\uFEFF/, '').trim();
+  if (xml.length > 1500000) throw new Error('too large ' + xml.length);          // 1.5MB超は解析しない（固まる元）
+  if (!/<(rss|feed|rdf:RDF)[\s>]/i.test(xml.slice(0, 2000))) throw new Error('not a feed');   // HTMLのエラーページなど
   try { return parseXml_(xml); }
   catch (e) { return parseRegex_(xml); }
 }
@@ -481,9 +483,14 @@ function fetchWeather_() {
 // キャッシュ（Driveの1ファイル）
 // ============================================================
 function getDataFile_() {
+  // 毎回 Drive を名前で検索すると遅い（数十秒かかることがある）ので、ファイルIDを覚えておいて直接開く
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('DATA_FILE_ID');
+  if (id) { try { return DriveApp.getFileById(id); } catch (e) {} }
   const files = DriveApp.getFilesByName(DATA_FILE);
-  if (files.hasNext()) return files.next();
-  return DriveApp.createFile(DATA_FILE, '', MimeType.PLAIN_TEXT);
+  const f = files.hasNext() ? files.next() : DriveApp.createFile(DATA_FILE, '', MimeType.PLAIN_TEXT);
+  props.setProperty('DATA_FILE_ID', f.getId());
+  return f;
 }
 function readCache_() {
   const f = getDataFile_();
