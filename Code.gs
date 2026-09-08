@@ -18,6 +18,7 @@ const DATA_FILE = 'airlab_news_data.json';   // Driveに置くキャッシュ
 const MAX_PER_FEED = 40;                     // 1媒体あたり最大件数
 const MAX_PER_TAB = 150;                     // 1タブあたり最大件数
 const MAX_AGE_DAYS = 4;                      // これより古い記事は捨てる
+const DROP_SOURCES = ['YouTube'];            // この媒体名の記事は全タブで捨てる（動画など）
 const SUMMARY_LEN = 110;                     // 要約の文字数
 
 // Googleニュース検索をRSSとして使う（公式RSSが無い媒体用）
@@ -81,9 +82,9 @@ const TABS = [
     { name: 'danmee', url: 'https://danmee.jp/feed/' },
   ]},
   { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
-    { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja' },
-    { name: 'GameWith', url: 'https://gamewith.jp/pokemongo/feed' },   // GoogleのサーバーからはHTTP 403で取れないことがある
+    { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja', jaOnly: true },   // 英語版の重複は捨てる
     { name: 'ポケモンGO', url: gn('ポケモンGO') },
+    // GameWith の RSS は Google のサーバーからだと HTTP 403 で取れないので外した（2026-09-08）
   ]},
 ];
 
@@ -182,7 +183,9 @@ function refresh() {
       items.slice(0, MAX_PER_FEED).forEach(it => {
         if (!it.t || !it.u) return;
         if (it.d && it.d < cutoff) return;
+        if (m.feed.jaOnly && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) return;   // 日本語が無い＝英語版
         it.s = it.s || m.feed.name;
+        if (DROP_SOURCES.indexOf(it.s) >= 0) return;
         byTab[m.tab].push(it);
       });
     } catch (err) { errors.push(m.feed.name + ' ' + err); }
