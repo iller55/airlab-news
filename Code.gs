@@ -29,14 +29,18 @@ function gn(q) {
 // ---------- K-POP の「これだけ」リスト ----------
 // 英字は前後に英字が無いとき、カタカナは前後にカタカナが無いときだけ当たる（LIVE の IVE、レイアウトの レイ を拾わない）
 const KPOP_GROUPS_EN = ['i-dle', '\\(G\\)I-DLE', 'IVE', 'BABYMONSTER', 'BABY MONSTER', 'ITZY', 'NMIXX', "Baby DON'?T Cry", 'YOUNG POSSE', 'UNCHILD'];
-const KPOP_GROUPS_JA = ['アイドゥル', 'アイヴ', 'ベビモン', 'ベイビーモンスター', 'イッチ', 'エンミックス', 'ベイビードントクライ', 'ヤングポッセ', 'アンチャイルド'];
-const KPOP_MEMBERS_EN = ['Wonyoung', 'Yujin', 'Gaeul', 'Leeseo', 'Yeji', 'Ryujin', 'Chaeryeong', 'Miyeon', 'Minnie', 'Soyeon', 'Yuqi', 'Shuhua', 'Ahyeon', 'Pharita', 'Chiquita', 'Haewon', 'Sullyoon', 'Kyujin', 'Jiwoo', 'Ruka'];
+const KPOP_GROUPS_JA = ['アイドゥル', 'アイヴ', 'ベビモン', 'ベイビーモンスター', 'イッチ', 'エンミックス', 'ベイビードントクライ', 'ヤングポッセ', 'ヤングパシー', 'アンチャイルド'];
+const KPOP_MEMBERS_EN = ['Wonyoung', 'Yujin', 'Gaeul', 'Leeseo', 'Yeji', 'Ryujin', 'Chaeryeong', 'Miyeon', 'Minnie', 'Soyeon', 'Yuqi', 'Shuhua', 'Ahyeon', 'Pharita', 'Chiquita', 'Haewon', 'Sullyoon', 'Kyujin', 'Jiwoo', 'Ruka',
+  'Yihyun', 'Kumi', 'Beni', 'Sunhye', 'Yeonjung', 'Jiana', 'Doeun', 'Jieun', 'Heekie', 'Evon', 'Haeun', 'Yeeun'];
 const KPOP_MEMBERS_JA = [
   'ミヨン', 'ミンニ', 'ソヨン', 'ウギ', 'シュファ',                          // i-dle
   'ユジン', 'ガウル', 'レイ', 'ウォニョン', 'リズ', 'イソ',                    // IVE
   'ルカ', 'ファリン', 'アサ', 'アヒョン', 'ラミ', 'ローラ', 'チキータ',         // BABYMONSTER
   'イェジ', 'リア', 'リュジン', 'チェリョン', 'ユナ',                          // ITZY
   'リリー', 'ヘウォン', 'ソリュン', 'ベイ', 'ジウ', 'キュジン',                // NMIXX
+  'イヒョン', 'クミ', 'ミア', 'ベニ',                                          // Baby DONT Cry（P NATION、2025-06 デビュー）
+  'ソネ', 'ヨンジョン', 'ジアナ', 'ドウン', 'ジウン',                          // YOUNG POSSE（DSP、2023 デビュー）
+  'イェウン', 'ヒキ', 'ティナ', 'エボン', 'アコ', 'ハウン',                    // UNCHILD（High Up、2026-04 デビュー）
 ];
 const KPOP_ONLY = new RegExp(
   '(?<![A-Za-z])(' + KPOP_GROUPS_EN.concat(KPOP_MEMBERS_EN).join('|') + ')(?![A-Za-z])' +
