@@ -222,7 +222,7 @@ function renderList() {
     if (clusters.length) {
       html += '<div class="sec">いま大きい話</div>';
       clusters.forEach(c => c.forEach(it => BYURL[it.u] = it));
-      html += clusters.slice(0, 5).map(c => `<div class="cluster"><a class="ti" href="${c[0].u}" target="_blank" data-u="${c[0].u}">${esc(c[0].t)}</a><div class="src">${c.map(it => `<a href="${it.u}" target="_blank" data-u="${it.u}">${esc(it.s)}</a>`).join('')}</div></div>`).join('');
+      html += clusters.slice(0, 3).map(c => `<div class="cluster"><a class="ti" href="${c[0].u}" target="_blank" data-u="${c[0].u}">${esc(c[0].t)}</a><div class="src">${c.map(it => `<a href="${it.u}" target="_blank" data-u="${it.u}">${esc(it.s)}</a>`).join('')}</div></div>`).join('');
     }
     const used = new Set(clusters.flat().map(it => it.u));
     // 「最新」は、前に出した記事（seen）と既読を後ろに回して、開くたびに顔ぶれが変わるようにする
