@@ -75,11 +75,20 @@ const TABS = [
     { name: 'webCG', url: 'https://www.webcg.net/list/feed/rss' },
     { name: 'くるまのニュース', url: 'https://kuruma-news.jp/feed' },
   ]},
-  { id: 'kpop', name: 'K-POP', color: '#3fae6a', feeds: [
+  // K-POP: 好きなグループの話だけ（only に当たらない記事は捨てる。ボーイズはここで消える）
+  { id: 'kpop', name: 'K-POP', color: '#3fae6a',
+    only: /(?<![A-Za-z])(i-dle|\(G\)I-DLE|アイドゥル|IVE|アイヴ|BABYMONSTER|BABY MONSTER|ベビモン|ベイビーモンスター|ITZY|イッチ|NMIXX|エンミックス|Baby DON'?T Cry|ベイビードントクライ)(?![A-Za-z])/i,
+    feeds: [
     { name: 'Kstyle', url: gn('site:news.kstyle.com') },
     { name: 'Kpop monster', url: 'https://www.kpopmonster.jp/?feed=rss2' },
     { name: 'wowkorea', url: gn('site:wowkorea.jp') },
     { name: 'danmee', url: 'https://danmee.jp/feed/' },
+    { name: 'i-dle', url: gn('i-dle アイドゥル') },
+    { name: 'IVE', url: gn('IVE アイヴ') },
+    { name: 'BABYMONSTER', url: gn('BABYMONSTER') },
+    { name: 'ITZY', url: gn('ITZY') },
+    { name: 'NMIXX', url: gn('NMIXX') },
+    { name: 'Baby DONT Cry', url: gn('"Baby DONT Cry"') },
   ]},
   { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
     { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja', jaOnly: true },   // 英語版の重複は捨てる
@@ -165,7 +174,7 @@ function refresh() {
   TABS.forEach(tab => tab.feeds.forEach(f => {
     reqs.push({ url: f.url, muteHttpExceptions: true, followRedirects: true,
       headers: { 'User-Agent': 'Mozilla/5.0 (AIR LAB NEWS; personal RSS reader)' } });
-    meta.push({ tab: tab.id, feed: f });
+    meta.push({ tab: tab.id, feed: f, only: tab.only || null });
   }));
 
   const cutoff = Date.now() - MAX_AGE_DAYS * 86400000;
@@ -184,6 +193,7 @@ function refresh() {
         if (!it.t || !it.u) return;
         if (it.d && it.d < cutoff) return;
         if (m.feed.jaOnly && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) return;   // 日本語が無い＝英語版
+        if (m.only && !m.only.test(it.t)) return;                                  // タブの「これだけ」ルール
         it.s = it.s || m.feed.name;
         if (DROP_SOURCES.indexOf(it.s) >= 0) return;
         byTab[m.tab].push(it);
@@ -207,12 +217,13 @@ function refresh() {
 
   // 前回のキャッシュと合流（取れなかった媒体の記事を残す）。ただし今のルールで捨てるものは残さない
   const jaOnlySrc = {}; TABS.forEach(t => t.feeds.forEach(f => { if (f.jaOnly) jaOnlySrc[f.name] = 1; }));
-  const dropOld_ = it => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t));
+  const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
+  const dropOld_ = (id, it) => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t));
   let old = null;
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
   if (old && old.tabs) {
     Object.keys(byTab).forEach(id => {
-      (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff && !dropOld_(it)) byTab[id].push(it); });
+      (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff && !dropOld_(id, it)) byTab[id].push(it); });
     });
   }
 
