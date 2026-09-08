@@ -195,6 +195,13 @@ const FETCH_BUDGET_MS = 240000;
 
 function refresh() {
   const start = Date.now();
+  // 同時に2本走らせない（前の回が長引いているときは今回は見送る）
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) { console.log('refresh: 前の回がまだ動いているので見送り'); return; }
+  try { refreshBody_(start); } finally { lock.releaseLock(); }
+}
+
+function refreshBody_(start) {
   const reqs = [];
   const meta = [];
   TABS.forEach(tab => tab.feeds.forEach(f => {
@@ -233,20 +240,26 @@ function refresh() {
       break;
     }
     const names = meta.slice(i, i + FETCH_CHUNK).map(m => m.feed.name).join(',');
+    console.log('fetch: ' + names);                       // 途中で落ちたとき、どこまで行ったか実行ログで分かるように
     const t0 = Date.now();
     let rs = [];
     try { rs = UrlFetchApp.fetchAll(reqs.slice(i, i + FETCH_CHUNK)); }
     catch (err) { errors.push('fetchAll ' + names + ' ' + err); continue; }
-    timing.push(names + ' ' + (Date.now() - t0) + 'ms');
+    const t1 = Date.now();
     rs.forEach((r, j) => handle(meta[i + j], r));
+    timing.push(names + ' fetch ' + (t1 - t0) + 'ms / parse ' + (Date.now() - t1) + 'ms');
   }
+  console.log('fetch done ' + (Date.now() - start) + 'ms');
 
   // 前回のキャッシュと合流（取れなかった媒体の記事を残す）。ただし今のルールで捨てるものは残さない
   const jaOnlySrc = {}; TABS.forEach(t => t.feeds.forEach(f => { if (f.jaOnly) jaOnlySrc[f.name] = 1; }));
   const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
   const dropOld_ = (id, it) => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || '')));
   let old = null;
+  const tc = Date.now();
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
+  timing.push('cache-read ' + (Date.now() - tc) + 'ms');
+  console.log('cache read ' + (Date.now() - tc) + 'ms');
   if (old && old.tabs) {
     Object.keys(byTab).forEach(id => {
       (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff && !dropOld_(id, it)) byTab[id].push(it); });
@@ -262,15 +275,21 @@ function refresh() {
       .slice(0, MAX_PER_TAB);
   });
 
+  const tw = Date.now();
+  const weather = fetchWeather_();
+  timing.push('weather ' + (Date.now() - tw) + 'ms');
+  console.log('weather ' + (Date.now() - tw) + 'ms');
   const data = {
     updated: Date.now(),
     tabs: byTab,
-    weather: fetchWeather_(),
+    weather: weather,
     errors: errors,
     timing: timing,
     took: Date.now() - start,
   };
+  const ts = Date.now();
   writeCache_(JSON.stringify(data));
+  console.log('cache write ' + (Date.now() - ts) + 'ms');
   Logger.log('refresh 完了 ' + data.took + 'ms, errors: ' + errors.join(' / ') + ' | ' + timing.join(' | '));
 }
 
