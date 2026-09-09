@@ -86,11 +86,6 @@ const TABS = [
   { id: 'rocket', name: 'ロケニュー', color: '#e8862a', feeds: [
     { name: 'ロケットニュース24', url: 'https://rocketnews24.com/feed/' },
   ]},
-  { id: 'mens', name: 'メンズスタイル', color: '#3b8fd9', feeds: [
-    { name: "MEN'S NON-NO", url: 'https://www.mensnonno.jp/feed/' },
-    { name: 'GQ JAPAN', url: 'https://www.gqjapan.jp/feed/rss' },
-    { name: 'Esquire', url: 'https://www.esquire.com/jp/rss/all.xml/' },
-  ]},
   { id: 'car', name: '自動車', color: '#8e5bd6', feeds: [
     { name: 'Car Watch', url: 'https://car.watch.impress.co.jp/data/rss/1.0/car/feed.rdf' },
     { name: 'レスポンス', url: 'https://response.jp/rss20/index.rdf' },
@@ -124,6 +119,11 @@ const TABS = [
     { name: 'UNCHILD', url: gn('UNCHILD K-POP') },
     { name: 'RESCENE', url: gn('RESCENE') },
     { name: 'aespa', url: gn('aespa') },
+  ]},
+  { id: 'mens', name: 'メンズスタイル', color: '#3b8fd9', feeds: [
+    { name: "MEN'S NON-NO", url: 'https://www.mensnonno.jp/feed/' },
+    { name: 'GQ JAPAN', url: 'https://www.gqjapan.jp/feed/rss' },
+    { name: 'Esquire', url: 'https://www.esquire.com/jp/rss/all.xml/' },
   ]},
   { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
     { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja', jaOnly: true },   // 英語版の重複は捨てる
