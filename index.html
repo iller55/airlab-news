@@ -25,8 +25,8 @@
   .bar button { background: none; border: 0; color: var(--fg); font-size: 20px; padding: 4px 6px; }
   .tabs { display: flex; gap: 6px; overflow-x: auto; padding: 4px 10px 8px; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
-  .tab { flex: 0 0 auto; padding: 7px 13px; border-radius: 8px; font-size: 14px; font-weight: 700; color: #fff; opacity: .55; background: #444; }
-  .tab.on { opacity: 1; box-shadow: 0 0 0 2px #fff3 inset; }
+  .tab { flex: 0 0 auto; padding: 7px 13px; border-radius: 8px; font-size: 14px; font-weight: 700; color: #b9bfc7; background: #22262b; }
+  .tab.on { color: #101214; background: #e6e8eb; }
   .wx { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; background: var(--card); border-bottom: 1px solid var(--line); font-size: 14px; }
   .wx .big { font-size: 26px; line-height: 1; }
   .wx .t { font-size: 22px; font-weight: 700; }
@@ -126,7 +126,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-10a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-10b';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 // ---------- 状態 ----------
 let DATA = null, TABS = [], cur = ls('tab') || 'top';
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
@@ -196,9 +196,9 @@ function fitHeader() { document.documentElement.style.setProperty('--head', docu
 window.addEventListener('resize', fitHeader);
 
 function renderTabs() {
-  const all = [{ id: 'top', name: 'トップ', color: '#e0443f' }].concat(TABS);
+  const all = [{ id: 'top', name: 'トップ', color: '#9b4a44' }].concat(TABS);
   const el = document.getElementById('tabs');
-  el.innerHTML = all.map(t => `<div class="tab ${t.id === cur ? 'on' : ''}" data-id="${t.id}" style="background:${t.color}">${esc(t.name)}</div>`).join('');
+  el.innerHTML = all.map(t => `<div class="tab ${t.id === cur ? 'on' : ''}" data-id="${t.id}">${esc(t.name)}</div>`).join('');
   el.querySelectorAll('.tab').forEach(t => t.onclick = () => { cur = t.dataset.id; ls('tab', cur); renderTabs(); renderList(); window.scrollTo(0, 0); });
   const on = el.querySelector('.on'); if (on) el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2;
 }
