@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#101214">
 <link rel="manifest" href="manifest-fc.json">
 <link rel="apple-touch-icon" href="icon-fc-180.png">
+<meta name="fc-version" content="2026-09-09c">
 <title>AIR LAB FC</title>
 <style>
   :root { --bg:#101214; --card:#1a1d21; --fg:#e8e9ea; --dim:#8b9096; --line:#2a2e33; }
@@ -80,5 +81,20 @@
   <p class="memo">期限 2027/09 頃（1年買い切り、自動継続なし）</p>
 </div>
 
+
+<script>
+// 開いたら裏で最新版を取りに行き、バージョンが違えば読み直す（ホーム画面アプリのキャッシュ対策）
+(async () => {
+  try {
+    const mine = document.querySelector('meta[name="fc-version"]').content;
+    const r = await fetch('fc.html?t=' + Date.now(), { cache: 'no-store' });
+    const m = (await r.text()).match(/name="fc-version" content="([^"]+)"/);
+    if (m && m[1] !== mine && !sessionStorage.getItem('fc_reloaded_' + m[1])) {
+      sessionStorage.setItem('fc_reloaded_' + m[1], '1');
+      location.reload();
+    }
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>
