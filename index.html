@@ -126,7 +126,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-09b';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-10a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 // ---------- 状態 ----------
 let DATA = null, TABS = [], cur = ls('tab') || 'top';
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
@@ -168,14 +168,15 @@ async function load(force) {
   const hadCache = !!DATA;
   try {
     const [t, raw] = await Promise.all([
-      TABS.length && !force ? Promise.resolve(TABS) : call('getTabs'),
+      call('getTabs'),                                        // タブ一覧は毎回取り直す（増えたタブを拾うため）
       call(force ? 'refreshNow' : 'getData'),
     ]);
     const tabs = typeof t === 'string' ? JSON.parse(t) : t;
     const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!hadCache) { TABS = tabs; DATA = data; saveCache(); render(); return; }
+    if (JSON.stringify(tabs) !== JSON.stringify(TABS)) { TABS = tabs; saveCache(); renderTabs(); fitHeader(); }
     if (data.updated === DATA.updated && !force) return;      // 変わってない
-    TABS = tabs; pending = data;
+    pending = data;
     if (force || window.scrollY < 80) applyPending();          // 上にいるなら静かに差し替え
     else toast('新しい記事あり。↻で入れ替え');
   } catch (e) {
