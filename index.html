@@ -120,13 +120,13 @@
       <button class="pri" id="save">保存</button>
     </div>
     <p id="errs" class="err"></p>
-    <p style="margin-top:12px"><a href="fc.html" style="color:var(--acc);font-weight:600">🎫 ファンクラブの入口（AIR LAB FC）→</a></p>
+    <p style="margin-top:12px"><a href="fc.html" style="color:var(--acc);font-weight:600">🎫 AIR LAB FC →</a></p>
     <p style="text-align:right;margin:4px 0 0">画面のバージョン: <b id="ver"></b></p>
   </div>
 </div>
 
 <script>
-const VERSION = '2026-09-09a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-09b';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 // ---------- 状態 ----------
 let DATA = null, TABS = [], cur = ls('tab') || 'top';
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
