@@ -133,7 +133,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-13c';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-13d';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -151,7 +151,7 @@ const FC_HTML = `
   </div>
 </div>
 <div class="fc-card" style="--c:#d40682;--t:#fff">
-  <a class="fc-top" href="https://ive-official.jp/mob/index.php?site=DIVE" target="_blank" rel="noopener"><img class="fc-logo" src="logos/ive-mark-k.png" alt=""><span>DIVE JAPAN</span></a>
+  <a class="fc-top" href="https://ive-official.jp/mob/index.php?site=DIVE&r=RND" target="_blank" rel="noopener"><img class="fc-logo" src="logos/ive-mark-k.png" alt=""><span>DIVE JAPAN</span></a>
   <div class="fc-links">
     <a href="https://fc.dps.amuse.co.jp/dive/mypage" target="_blank" rel="noopener">MY PAGE</a>
     <a href="https://www.instagram.com/ivestarship/" target="_blank" rel="noopener">Instagram</a>
@@ -296,7 +296,7 @@ function renderList() {
     if (seen.size > 600) seen = new Set([...seen].slice(-450));
     ls('seen', JSON.stringify([...seen]));
   } else if (cur === 'fc') {
-    html = FC_HTML;
+    html = FC_HTML.replace(/&r=RND/g, '&r=' + Date.now());
   } else {
     const items = visible(DATA.tabs[cur] || []);
     html = items.length ? items.map(card).join('') : '<div class="empty">まだ記事がない</div>';
