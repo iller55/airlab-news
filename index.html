@@ -133,7 +133,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-13b';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-13c';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -444,19 +444,6 @@ function switchTab(dir) {
   }, { passive: true });
 })();
 
-
-// IVE（DIVE JAPAN）だけは、アプリ内ブラウザだとログインが通らない。
-// ページ読み込み時のセッションCookieが送信時に付かないのが原因らしく、正しいパスワードでも弾かれる。
-// そのためIVE関連のリンクに限り、ホーム画面アプリから開いたときはSafari本体に渡す。
-// 他のFCは今まで通りアプリ内ブラウザで開く。
-const SAFARI_ONLY = ['ive-official.jp', 'fc.dps.amuse.co.jp'];
-document.addEventListener('click', e => {
-  const a = e.target && e.target.closest ? e.target.closest('.fc-card a') : null;
-  if (!a || !a.href) return;
-  if (window.navigator.standalone !== true) return;
-  if (!SAFARI_ONLY.some(h => a.href.includes(h))) return;
-  e.preventDefault(); location.href = 'x-safari-' + a.href;
-}, true);
 
 if (loadCache()) render();
 load(false);
