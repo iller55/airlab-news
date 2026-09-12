@@ -133,7 +133,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-12a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-13a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -443,6 +443,16 @@ function switchTab(dir) {
     if (Date.now() - st < 600 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) switchTab(dx < 0 ? 1 : -1);
   }, { passive: true });
 })();
+
+
+// FCタブのリンク: ホーム画面アプリから開くとアプリ内ブラウザになり、Safariとログイン状態が
+// 共有されない（DIVE JAPANのようにログインが必要なサイトで入れなくなる）。
+// standalone のときだけ x-safari- を付けてSafari本体に渡す。
+document.addEventListener('click', e => {
+  const a = e.target && e.target.closest ? e.target.closest('.fc-card a') : null;
+  if (!a || !a.href) return;
+  if (window.navigator.standalone === true) { e.preventDefault(); location.href = 'x-safari-' + a.href; }
+}, true);
 
 if (loadCache()) render();
 load(false);
