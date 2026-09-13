@@ -132,8 +132,8 @@ const TABS = [
   ]},
 ];
 
-// 天気（鳥取市）
-const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=35.50&longitude=134.24'
+// 天気（北栄町・役場付近。座標は国土地理院の住所検索で確認）
+const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=35.49&longitude=133.76'
   + '&current=temperature_2m,weather_code,precipitation'
   + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
   + '&timezone=Asia%2FTokyo&forecast_days=3';
@@ -473,15 +473,18 @@ function normTitle_(t) {
 // ============================================================
 function fetchWeather_() {
   const w = {};
+  let body = '';
   try {
-    const j = JSON.parse(UrlFetchApp.fetch(WEATHER_URL, { muteHttpExceptions: true }).getContentText());
+    const res = UrlFetchApp.fetch(WEATHER_URL, { muteHttpExceptions: true });
+    body = res.getResponseCode() + ' ' + res.getContentText();
+    const j = JSON.parse(res.getContentText());
     w.now = { temp: Math.round(j.current.temperature_2m), code: j.current.weather_code };
     w.days = j.daily.time.map((d, i) => ({
       date: d, code: j.daily.weather_code[i],
       max: Math.round(j.daily.temperature_2m_max[i]), min: Math.round(j.daily.temperature_2m_min[i]),
       pop: j.daily.precipitation_probability_max[i],
     }));
-  } catch (e) { w.error = String(e); }
+  } catch (e) { w.error = String(e) + ' | body=' + body.slice(0, 200); console.log('weather error', w.error); }
   try {
     const o = JSON.parse(UrlFetchApp.fetch(JMA_OVERVIEW_URL, { muteHttpExceptions: true }).getContentText());
     w.text = String(o.text || '').replace(/\s+/g, ' ').slice(0, 160);

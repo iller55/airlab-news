@@ -140,7 +140,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-13g';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-13h';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -260,9 +260,9 @@ const WX = { 0: '☀️', 1: '🌤', 2: '⛅️', 3: '☁️', 45: '🌫', 48: '
 function renderWeather() {
   const w = DATA.weather || {}; const el = document.getElementById('wx');
   if (!w.now) { el.innerHTML = ''; return; }
-  const radar = 'https://www.jma.go.jp/bosai/nowc/#zoom:9/lat:35.50/lon:134.24/colordepth:normal/elements:hrpns';
+  const radar = 'https://www.jma.go.jp/bosai/nowc/#zoom:9/lat:35.49/lon:133.76/colordepth:normal/elements:hrpns';
   const days = (w.days || []).slice(0, 3).map((d, i) => `<div class="day">${i === 0 ? '今日' : i === 1 ? '明日' : '明後日'}<b>${WX[d.code] || '·'} ${d.max}°/${d.min}°</b>${d.pop != null ? d.pop + '%' : ''}</div>`).join('');
-  el.innerHTML = `<div class="wx"><span class="big">${WX[w.now.code] || '·'}</span><div><div class="t">${w.now.temp}°</div><div class="sub">鳥取市</div></div><div class="days">${days}</div><a class="radar" href="${radar}" target="_blank">雨雲</a></div>`
+  el.innerHTML = `<div class="wx"><span class="big">${WX[w.now.code] || '·'}</span><div><div class="t">${w.now.temp}°</div><div class="sub">北栄町</div></div><div class="days">${days}</div><a class="radar" href="${radar}" target="_blank">雨雲</a></div>`
     + (w.text ? `<div class="wxtext">${esc(w.text)}</div>` : '');
 }
 
