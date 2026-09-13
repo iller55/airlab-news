@@ -86,6 +86,9 @@
   .fc-logo { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 92px; height: 60px; border-radius: 10px; background: #fff; object-fit: contain; padding: 6px; }
   .fc-links { display: flex; flex-wrap: wrap; gap: 8px; }
   .fc-links a { flex: 1 1 40%; text-align: center; text-decoration: none; color: var(--fg); background: #24282d; border: 1px solid var(--line); border-radius: 12px; padding: 12px 8px; font-size: 15px; font-weight: 600; }
+  .sheet .box.fcbox { max-height: 84vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 10px calc(12px + var(--bot)); }
+  .fcbox .fc-card { margin: 0 0 10px; }
+  .fcbox .fc-card:last-child { margin-bottom: 0; }
 </style>
 </head>
 <body>
@@ -93,6 +96,7 @@
   <div class="bar">
     <h1>🛋️ AIR LAB</h1>
     <span class="upd" id="upd">読み込み中…</span>
+    <button id="fcBtn" title="ファンクラブ">🎫</button>
     <button id="gear" title="設定">⚙︎</button>
   </div>
   <div class="tabs" id="tabs"></div>
@@ -103,6 +107,9 @@
 <button class="fab" id="fab" title="更新">↻</button>
 <div class="toast" id="toast"></div>
 
+<div class="sheet" id="fcsheet">
+  <div class="box fcbox"><div id="fclist"></div></div>
+</div>
 <div class="sheet" id="msheet">
   <div class="box">
     <h2>ミュート</h2>
@@ -133,7 +140,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-13d';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-13e';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -174,6 +181,7 @@ const FC_HTML = `
 `;
 // ---------- 状態 ----------
 let DATA = null, TABS = [], cur = ls('tab') || 'top';
+if (cur === 'fc') { cur = 'top'; ls('tab', cur); }   // FCはタブから外してヘッダーの🎫へ移した
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
 let read = new Set(JSON.parse(ls('read') || '[]'));
 let muteSrc = new Set(JSON.parse(ls('muteSrc') || '[]'));
@@ -241,7 +249,7 @@ function fitHeader() { document.documentElement.style.setProperty('--head', docu
 window.addEventListener('resize', fitHeader);
 
 function renderTabs() {
-  const all = [{ id: 'top', name: 'トップ', color: '#9b4a44' }].concat(TABS, [{ id: 'fc', name: 'FC' }]);
+  const all = [{ id: 'top', name: 'トップ', color: '#9b4a44' }].concat(TABS);
   const el = document.getElementById('tabs');
   el.innerHTML = all.map(t => `<div class="tab ${t.id === cur ? 'on' : ''}" data-id="${t.id}">${esc(t.name)}</div>`).join('');
   el.querySelectorAll('.tab').forEach(t => t.onclick = () => { cur = t.dataset.id; ls('tab', cur); renderTabs(); renderList(); window.scrollTo(0, 0); });
@@ -295,8 +303,6 @@ function renderList() {
     mix.forEach(it => seen.add(it.u));
     if (seen.size > 600) seen = new Set([...seen].slice(-450));
     ls('seen', JSON.stringify([...seen]));
-  } else if (cur === 'fc') {
-    html = FC_HTML.replace(/&r=RND/g, '&r=' + Date.now());
   } else {
     const items = visible(DATA.tabs[cur] || []);
     html = items.length ? items.map(card).join('') : '<div class="empty">まだ記事がない</div>';
@@ -352,6 +358,8 @@ function toast(s) { const t = document.getElementById('toast'); t.textContent = 
 
 document.getElementById('fab').onclick = async () => { const b = document.getElementById('fab'); if (pending) { applyPending(); window.scrollTo(0, 0); toast('入れ替えた'); return; } b.classList.add('spin'); const before = DATA && DATA.updated; await load(false); if (pending) applyPending(); renderList(); window.scrollTo(0, 0); b.classList.remove('spin'); toast(DATA && DATA.updated !== before ? '新しい記事を取ってきた' : '並べ直した（新しい記事はまだ）'); };
 document.getElementById('ver').textContent = VERSION;
+document.getElementById('fcBtn').onclick = () => { document.getElementById('fclist').innerHTML = FC_HTML.replace(/&r=RND/g, '&r=' + Date.now()); document.getElementById('fcsheet').classList.add('on'); };
+document.getElementById('fcsheet').onclick = e => { if (e.target.id === 'fcsheet') e.target.classList.remove('on'); };
 document.getElementById('gear').onclick = () => { document.getElementById('mute').value = mute.join('\n'); renderMutedSrc(); document.getElementById('sheet').classList.add('on'); };
 document.getElementById('sheet').onclick = e => { if (e.target.id === 'sheet') e.target.classList.remove('on'); };
 document.getElementById('save').onclick = () => { mute = document.getElementById('mute').value.split('\n').map(s => s.trim()).filter(Boolean); ls('mute', mute.join('\n')); document.getElementById('sheet').classList.remove('on'); renderList(); toast('保存した'); };
@@ -429,7 +437,7 @@ function renderMutedSrc() {
 
 // ---------- スワイプでタブ切り替え（本文の上で左右にはらう） ----------
 function switchTab(dir) {
-  const ids = ['top'].concat(TABS.map(t => t.id), ['fc']);
+  const ids = ['top'].concat(TABS.map(t => t.id));
   const i = ids.indexOf(cur); const n = i + dir;
   if (n < 0 || n >= ids.length) return;
   cur = ids[n]; ls('tab', cur); renderTabs(); renderList(); window.scrollTo(0, 0);
