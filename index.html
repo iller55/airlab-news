@@ -140,7 +140,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-13e';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-09-13f';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -275,13 +275,7 @@ function renderList() {
   let html = '';
   if (cur === 'top') {
     const japan = visible(DATA.tabs.japan || []);
-    const clusters = clusterize(japan);
-    if (clusters.length) {
-      html += '<div class="sec">いま大きい話</div>';
-      clusters.forEach(c => c.forEach(it => BYURL[it.u] = it));
-      html += clusters.slice(0, 3).map(c => `<div class="cluster"><a class="ti" href="${c[0].u}" target="_blank" data-u="${c[0].u}">${esc(c[0].t)}</a><div class="src">${c.map(it => `<a href="${it.u}" target="_blank" data-u="${it.u}">${esc(it.s)}</a>`).join('')}</div></div>`).join('');
-    }
-    const used = new Set(clusters.flat().map(it => it.u));
+    const used = new Set();   // 「いま大きい話」は廃止（2026-09-13）。国内記事は全部「最新」の候補に戻す
     // 「最新」は、前に出した記事（seen）と既読を後ろに回して、開くたびに顔ぶれが変わるようにする
     const fresh = it => !seen.has(it.u) && !read.has(it.u);
     const pick = (items, n) => { const a = items.filter(fresh); const b = items.filter(it => !fresh(it)); return a.concat(b).slice(0, n); };
