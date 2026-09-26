@@ -261,8 +261,10 @@ function renderWeather() {
   const w = DATA.weather || {}; const el = document.getElementById('wx');
   if (!w.now) { el.innerHTML = ''; return; }
   const radar = 'https://www.jma.go.jp/bosai/nowc/#zoom:9/lat:35.49/lon:133.76/colordepth:normal/elements:hrpns';
-  const days = (w.days || []).slice(0, 3).map((d, i) => `<div class="day">${i === 0 ? '今日' : i === 1 ? '明日' : '明後日'}<b>${WX[d.code] || '·'} ${d.max}°/${d.min}°</b>${d.pop != null ? d.pop + '%' : ''}</div>`).join('');
-  el.innerHTML = `<div class="wx"><span class="big">${WX[w.now.code] || '·'}</span><div><div class="t">${w.now.temp}°</div><div class="sub">北栄町</div></div><div class="days">${days}</div><a class="radar" href="${radar}" target="_blank">雨雲</a></div>`
+  const deg = v => v == null ? '–' : v + '°';
+  const days = (w.days || []).slice(0, 3).map((d, i) => `<div class="day">${i === 0 ? '今日' : i === 1 ? '明日' : '明後日'}<b>${WX[d.code] || '·'} ${deg(d.max)}/${deg(d.min)}</b>${d.pop != null ? d.pop + '%' : ''}</div>`).join('');
+  const sub = '北栄町' + (w.at ? ' ' + w.at : '') + (w.stale ? '（前回）' : '');   // 倉吉アメダスの観測時刻
+  el.innerHTML = `<div class="wx"><span class="big">${WX[w.now.code] || '·'}</span><div><div class="t">${w.now.temp}°</div><div class="sub">${sub}</div></div><div class="days">${days}</div><a class="radar" href="${radar}" target="_blank">雨雲</a></div>`
     + (w.text ? `<div class="wxtext">${esc(w.text)}</div>` : '');
 }
 
