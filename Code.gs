@@ -26,6 +26,16 @@ function gn(q) {
   return 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=ja&gl=JP&ceid=JP:ja';
 }
 
+// 英語圏のGoogleニュース（アフターパーツ・SEMA など海外の情報用）
+function gnEn(q) {
+  return 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=en-US&gl=US&ceid=US:en';
+}
+
+// 韓国現地のGoogleニュース（翻訳メディアを待たずに原文を拾う）
+function gnKo(q) {
+  return 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=ko&gl=KR&ceid=KR:ko';
+}
+
 // ---------- K-POP の「これだけ」リスト ----------
 // 英字は前後に英字が無いとき、カタカナは前後にカタカナが無いときだけ当たる（LIVE の IVE、レイアウトの レイ を拾わない）
 const KPOP_GROUPS_EN = ['i-dle', '\\(G\\)I-DLE', 'IVE', 'BABYMONSTER', 'BABY MONSTER', 'ITZY', 'NMIXX', "Baby DON'?T Cry", 'YOUNG POSSE', 'UNCHILD', 'RESCENE', 'aespa'];
@@ -44,19 +54,26 @@ const KPOP_MEMBERS_JA = [
   'ウォニ', 'リヴ', 'ミナミ', 'メイ', 'ゼナ', 'ジェナ',                         // RESCENE（THE MUZE、2024-03-26 デビュー。ZENA は ゼナ/ジェナ 両表記あり）
   'カリナ', 'ジゼル', 'ウィンター', 'ニンニン',                                // aespa（SM）
 ];
+// ハングル表記（韓国現地の記事用）。普通の単語と同じ綴りになるものは入れない
+//  例: アイドルの아이들は「子どもたち」、ITZYの있지は「〜だよね」と同綴りなので不採用。公式の여자아이들だけ使う
+const KPOP_GROUPS_KO = ['아이브', '에스파', '여자아이들', '베이비몬스터', '엔믹스', '리센느', '영파씨', '언차일드'];
+const KPOP_MEMBERS_KO = ['안유진', '장원영', '카리나', '닝닝', '지젤', '미연', '민니', '소연', '우기', '슈화',
+  '예지', '류진', '채령', '설윤', '해원', '규진', '아현', '파리타', '치키타'];
+
 const KPOP_ONLY = new RegExp(
   '(?<![A-Za-z])(' + KPOP_GROUPS_EN.concat(KPOP_MEMBERS_EN).join('|') + ')(?![A-Za-z])' +
-  '|(?<![ァ-ヶー])(' + KPOP_GROUPS_JA.concat(KPOP_MEMBERS_JA).join('|') + ')(?![ァ-ヶー])', 'i');
+  '|(?<![ァ-ヶー])(' + KPOP_GROUPS_JA.concat(KPOP_MEMBERS_JA).join('|') + ')(?![ァ-ヶー])' +
+  '|(?<![가-힣])(' + KPOP_GROUPS_KO.concat(KPOP_MEMBERS_KO).join('|') + ')(?![가-힣])', 'i');
 
 // ---------- タブと媒体 ----------
 const TABS = [
-  { id: 'local', name: '鳥取県', color: '#e8862a', feeds: [
+  { id: 'local', name: '鳥取県', color: '#a8683a', feeds: [
     { name: '日本海新聞', url: gn('site:nnn.co.jp 鳥取') },
     { name: '鳥取県ニュース', url: gn('鳥取県') },
     { name: 'BSS山陰放送', url: gn('山陰放送') },
     { name: 'TSK', url: gn('site:fnn.jp 鳥取') },
   ]},
-  { id: 'japan', name: '国内', color: '#3fae6a', feeds: [
+  { id: 'japan', name: '国内', color: '#3f7d5c', feeds: [
     { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat0.xml' },
     { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat1.xml' },
     { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat4.xml' },
@@ -67,7 +84,7 @@ const TABS = [
     { name: 'テレ朝news', url: gn('site:news.tv-asahi.co.jp') },
     { name: '日テレNEWS', url: gn('site:news.ntv.co.jp') },
   ]},
-  { id: 'tech', name: 'テクノロジー', color: '#8e5bd6', feeds: [
+  { id: 'tech', name: 'テクノロジー', color: '#5d5f9e', feeds: [
     { name: 'ITmedia', url: 'https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml' },
     { name: 'Impress Watch', url: 'https://www.watch.impress.co.jp/data/rss/1.0/ipw/feed.rdf' },
     { name: 'CNET Japan', url: 'https://feeds.japan.cnet.com/rss/cnet/all.rdf' },
@@ -75,18 +92,18 @@ const TABS = [
     { name: 'テクノエッジ', url: 'https://www.techno-edge.net/rss20/index.rdf' },
     { name: 'BRIDGE', url: 'https://thebridge.jp/feed' },
   ]},
-  { id: 'claude', name: 'Claude', color: '#c96442', feeds: [
+  { id: 'claude', name: 'Claude', color: '#a75d3f', feeds: [
     { name: 'Claude', url: gn('Anthropic Claude') },
     { name: 'Claude Code', url: gn('Claude Code') },
     { name: 'Anthropic', url: gn('Anthropic') },
   ]},
-  { id: 'gizmodo', name: 'ギズモード', color: '#d94b4b', feeds: [
+  { id: 'gizmodo', name: 'ギズモード', color: '#a84a4a', feeds: [
     { name: 'ギズモード', url: 'https://www.gizmodo.jp/feed/index.xml' },
   ]},
-  { id: 'rocket', name: 'ロケニュー', color: '#e8862a', feeds: [
+  { id: 'rocket', name: 'ロケニュー', color: '#9a6b3c', feeds: [
     { name: 'ロケットニュース24', url: 'https://rocketnews24.com/feed/' },
   ]},
-  { id: 'car', name: '自動車', color: '#8e5bd6', feeds: [
+  { id: 'car', name: '自動車', color: '#6b6f8a', feeds: [
     { name: 'Car Watch', url: 'https://car.watch.impress.co.jp/data/rss/1.0/car/feed.rdf' },
     { name: 'レスポンス', url: 'https://response.jp/rss20/index.rdf' },
     { name: 'webCG', url: 'https://www.webcg.net/list/feed/rss' },
@@ -94,17 +111,24 @@ const TABS = [
   ]},
   // K-POP: 好きなグループの話だけ（only に当たらない記事は捨てる。ボーイズはここで消える）
   // JLラングラー: ジープの話だけ（ジーンズの Wrangler を弾く）
-  { id: 'jl', name: 'JLラングラー', color: '#5b7a3a',
+  { id: 'jl', name: 'JLラングラー', color: '#61703f',
     only: /(?<![A-Za-z])(Jeep|Wrangler|JL|JK|Rubicon|Sahara|Unlimited)(?![A-Za-z])|ジープ|ラングラー|ルビコン|サハラ|アンリミテッド/i,
+    not: /ガリバー|中古車|在庫|入荷|買取|販売店|見積|残価|自動車保険|jeep-japan/i,
     feeds: [
     { name: 'ラングラー', url: gn('ジープ ラングラー') },
-    { name: 'Wrangler JL', url: gn('Jeep Wrangler JL') },
-    { name: 'ラングラー JL', url: gn('ラングラー JL カスタム') },
-    { name: 'Jeep Japan', url: gn('site:jeep-japan.com') },
+    { name: 'カスタムパーツ', url: gn('ラングラー カスタムパーツ') },
+    { name: 'Wrangler', url: gnEn('Jeep Wrangler') },
+    { name: 'Rubicon/4xe', url: gnEn('Wrangler 4xe OR Rubicon') },
+    { name: 'Off-road', url: gnEn('Jeep off-road') },
+    { name: 'SEMA', url: gnEn('SEMA Show Jeep') },
   ]},
-  { id: 'kpop', name: 'K-POP', color: '#3fae6a',
+  { id: 'kpop', name: 'K-POP', color: '#8c5a86',
     only: KPOP_ONLY,
     feeds: [
+    { name: 'Soompi', url: 'https://www.soompi.com/feed' },
+    { name: 'Koreaboo', url: 'https://www.koreaboo.com/feed/' },
+    { name: '韓国 IVE/aespa', url: gnKo('아이브 OR 에스파 OR 여자아이들') },
+    { name: '韓国 ベモン/NMIXX', url: gnKo('베이비몬스터 OR 엔믹스 OR 리센느 OR 영파씨') },
     { name: 'Kstyle', url: gn('site:news.kstyle.com') },
     { name: 'Kpop monster', url: 'https://www.kpopmonster.jp/?feed=rss2' },
     { name: 'wowkorea', url: gn('site:wowkorea.jp') },
@@ -120,12 +144,12 @@ const TABS = [
     { name: 'RESCENE', url: gn('RESCENE') },
     { name: 'aespa', url: gn('aespa') },
   ]},
-  { id: 'mens', name: 'メンズスタイル', color: '#3b8fd9', feeds: [
+  { id: 'mens', name: 'メンズスタイル', color: '#4a6f8f', feeds: [
     { name: "MEN'S NON-NO", url: 'https://www.mensnonno.jp/feed/' },
     { name: 'GQ JAPAN', url: 'https://www.gqjapan.jp/feed/rss' },
     { name: 'Esquire', url: 'https://www.esquire.com/jp/rss/all.xml/' },
   ]},
-  { id: 'pogo', name: 'ポケモンGO', color: '#3b8fd9', feeds: [
+  { id: 'pogo', name: 'ポケモンGO', color: '#4d7d8c', feeds: [
     { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja', jaOnly: true },   // 英語版の重複は捨てる
     { name: 'ポケモンGO', url: gn('ポケモンGO') },
     // GameWith の RSS は Google のサーバーからだと HTTP 403 で取れないので外した（2026-09-08）
@@ -218,7 +242,7 @@ function refreshBody_(start) {
   TABS.forEach(tab => tab.feeds.forEach(f => {
     reqs.push({ url: f.url, muteHttpExceptions: true, followRedirects: true,
       headers: { 'User-Agent': 'Mozilla/5.0 (AIR LAB NEWS; personal RSS reader)' } });
-    meta.push({ tab: tab.id, feed: f, only: tab.only || null });
+    meta.push({ tab: tab.id, feed: f, only: tab.only || null, not: tab.not || null });
   }));
 
   const cutoff = Date.now() - MAX_AGE_DAYS * 86400000;
@@ -237,6 +261,7 @@ function refreshBody_(start) {
         if (!it.t || !it.u) return;
         if (it.d && it.d < cutoff) return;
         if (m.feed.jaOnly && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) return;   // 日本語が無い＝英語版
+        if (m.not && m.not.test(it.t + ' ' + (it.x || ''))) return;                // タブの「これは捨てる」ルール
         if (m.only && !m.only.test(it.t + ' ' + (it.x || ''))) return;              // タブの「これだけ」ルール（題名＋要約で判定）
         it.s = it.s || m.feed.name;
         if (DROP_SOURCES.indexOf(it.s) >= 0) return;
@@ -265,7 +290,8 @@ function refreshBody_(start) {
   // 前回のキャッシュと合流（取れなかった媒体の記事を残す）。ただし今のルールで捨てるものは残さない
   const jaOnlySrc = {}; TABS.forEach(t => t.feeds.forEach(f => { if (f.jaOnly) jaOnlySrc[f.name] = 1; }));
   const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
-  const dropOld_ = (id, it) => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || '')));
+  const notOf  = {}; TABS.forEach(t => { if (t.not)  notOf[t.id]  = t.not;  });
+  const dropOld_ = (id, it) => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || ''))) || (notOf[id] && notOf[id].test(it.t + ' ' + (it.x || '')));
   let old = null;
   const tc = Date.now();
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
