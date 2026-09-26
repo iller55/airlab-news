@@ -132,11 +132,13 @@ const TABS = [
   ]},
 ];
 
-// 天気（北栄町・役場付近。座標は国土地理院の住所検索で確認）
-const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=35.49&longitude=133.76'
-  + '&current=temperature_2m,weather_code,precipitation'
-  + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
-  + '&timezone=Asia%2FTokyo&forecast_days=3';
+// 天気は気象庁から取る。前は Open-Meteo だったが、Apps Script は Google の共有 IP から出るので
+// 他人の分まで合算されて 1 日の上限（429）に当たり、出ない時間帯が多かった（2026-09-26）。
+const JMA_FORECAST_URL = 'https://www.jma.go.jp/bosai/forecast/data/forecast/310000.json';
+const JMA_AREA = '310020';        // 鳥取県 中・西部（北栄町はここ）
+const JMA_TEMP_POINT = '69122';   // 予報の気温は鳥取の地点。週間予報に気温があるのはここだけ
+const JMA_AMEDAS_LATEST = 'https://www.jma.go.jp/bosai/amedas/data/latest_time.txt';
+const JMA_AMEDAS_POINT = 'https://www.jma.go.jp/bosai/amedas/data/point/69101/';   // いまの気温は倉吉（北栄町の隣）
 const JMA_OVERVIEW_URL = 'https://www.jma.go.jp/bosai/forecast/data/overview_forecast/310000.json';
 
 // ============================================================
@@ -285,7 +287,7 @@ function refreshBody_(start) {
   });
 
   const tw = Date.now();
-  const weather = fetchWeather_();
+  const weather = fetchWeather_(old && old.weather);
   timing.push('weather ' + (Date.now() - tw) + 'ms');
   console.log('weather ' + (Date.now() - tw) + 'ms');
   const data = {
@@ -471,25 +473,95 @@ function normTitle_(t) {
 // ============================================================
 // 天気
 // ============================================================
-function fetchWeather_() {
+function fetchWeather_(prev) {
   const w = {};
-  let body = '';
+  const get = url => UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText();
+  const num = v => { const x = parseInt(v, 10); return isNaN(x) ? null : x; };
+  const dayOf = t => String(t).slice(0, 10);
+
+  // 3 日分の天気・降水確率・最高/最低（予報 JSON）
   try {
-    const res = UrlFetchApp.fetch(WEATHER_URL, { muteHttpExceptions: true });
-    body = res.getResponseCode() + ' ' + res.getContentText();
-    const j = JSON.parse(res.getContentText());
-    w.now = { temp: Math.round(j.current.temperature_2m), code: j.current.weather_code };
-    w.days = j.daily.time.map((d, i) => ({
-      date: d, code: j.daily.weather_code[i],
-      max: Math.round(j.daily.temperature_2m_max[i]), min: Math.round(j.daily.temperature_2m_min[i]),
-      pop: j.daily.precipitation_probability_max[i],
-    }));
-  } catch (e) { w.error = String(e) + ' | body=' + body.slice(0, 200); console.log('weather error', w.error); }
+    const j = JSON.parse(get(JMA_FORECAST_URL));
+    const short = j[0], week = j[1];
+    const pick = (ts, code) => ts.areas.filter(a => a.area.code === code)[0] || ts.areas[0];
+    const wx = short.timeSeries[0], area = pick(wx, JMA_AREA);
+    const days = wx.timeDefines.map((t, i) => ({ date: dayOf(t), code: jmaToWmo_(area.weatherCodes[i]),
+                                                  jma: area.weatherCodes[i], max: null, min: null, pop: null }));
+    const find = t => days.filter(d => d.date === dayOf(t))[0];
+    // 降水確率は 6 時間ごと → その日の最大
+    const pops = short.timeSeries[1], parea = pick(pops, JMA_AREA);
+    pops.timeDefines.forEach((t, i) => { const d = find(t), v = num(parea.pops[i]);
+      if (d && v != null) d.pop = d.pop == null ? v : Math.max(d.pop, v); });
+    // 気温は 00 時の値が最低、09 時の値が最高
+    const temps = short.timeSeries[2], tarea = pick(temps, JMA_TEMP_POINT);
+    temps.timeDefines.forEach((t, i) => { const d = find(t), v = num(tarea.temps[i]);
+      if (!d || v == null) return; if (String(t).slice(11, 13) === '00') d.min = v; else d.max = v; });
+    // 足りない日は週間予報で埋める
+    const wt = week.timeSeries[1], warea = pick(wt, JMA_TEMP_POINT);
+    wt.timeDefines.forEach((t, i) => { const d = find(t); if (!d) return;
+      if (d.max == null) d.max = num(warea.tempsMax[i]); if (d.min == null) d.min = num(warea.tempsMin[i]); });
+    const wp = week.timeSeries[0], wparea = wp.areas[0];
+    wp.timeDefines.forEach((t, i) => { const d = find(t); if (d && d.pop == null) d.pop = num(wparea.pops[i]); });
+    w.days = days.slice(0, 3);
+    w.issued = short.reportDatetime;
+  } catch (e) { w.error = 'forecast ' + String(e); console.log('weather error', w.error); }
+
+  // いまの気温（倉吉アメダス、10 分ごと）。ファイルは 3 時間ごとに分かれている
   try {
-    const o = JSON.parse(UrlFetchApp.fetch(JMA_OVERVIEW_URL, { muteHttpExceptions: true }).getContentText());
+    const m = get(JMA_AMEDAS_LATEST).trim().match(/^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/);
+    const h3 = ('0' + Math.floor(parseInt(m[4], 10) / 3) * 3).slice(-2);
+    const pt = JSON.parse(get(JMA_AMEDAS_POINT + m[1] + m[2] + m[3] + '_' + h3 + '.json'));
+    const keys = Object.keys(pt).sort(), last = pt[keys[keys.length - 1]];
+    w.now = { temp: Math.round(last.temp[0]), code: w.days && w.days[0] ? w.days[0].code : 3 };
+    w.at = keys[keys.length - 1].replace(/^\d{8}(\d\d)(\d\d)\d\d$/, '$1:$2');     // 観測時刻 HH:MM
+    // 今日の最高/最低が予報に無い（夕方以降は消える）ときは、倉吉の実測を入れる
+    if (w.days && w.days[0]) {
+      if (w.days[0].max == null && last.maxTemp) w.days[0].max = Math.round(last.maxTemp[0]);
+      if (w.days[0].min == null && last.minTemp) w.days[0].min = Math.round(last.minTemp[0]);
+    }
+  } catch (e) { w.error = (w.error ? w.error + ' / ' : '') + 'amedas ' + String(e); console.log('weather error', w.error); }
+
+  // 取れなかったぶんは前回の値を残す（空にすると画面から天気が消える）
+  if (prev) {
+    if (!w.days && prev.days) { w.days = prev.days; w.stale = true; }
+    if (!w.now && prev.now) { w.now = prev.now; w.at = prev.at; w.stale = true; }
+  }
+
+  try {
+    const o = JSON.parse(get(JMA_OVERVIEW_URL));
     w.text = String(o.text || '').replace(/\s+/g, ' ').slice(0, 160);
   } catch (e) {}
   return w;
+}
+
+// 気象庁の天気コード（3 桁）を、画面の絵文字表（Open-Meteo の WMO コード）に読み替える。
+// 頭の 1 桁が 1=晴 2=曇 3=雨 4=雪。細かい組み合わせは代表的なものだけ拾う
+function jmaToWmo_(c) {
+  const n = parseInt(c, 10), k = String(c).charAt(0);
+  const has = list => list.indexOf(n) >= 0;
+  if (has([119, 125, 140, 219, 240, 350])) return 95;                                  // 雷
+  if (has([130, 131, 132])) return 45;                                                 // 霧
+  if (k === '4') return has([405, 406, 407]) ? 75 : 71;                                // 雪
+  if (k === '3') {
+    if (has([303, 304, 309, 317, 318, 319, 320, 321, 322, 340, 361, 371])) return 71;  // 雨まじりの雪
+    if (has([306, 308])) return 65;                                                    // 大雨・暴風雨
+    if (n === 301) return 80;                                                          // 雨時々晴
+    return n === 300 ? 63 : 61;
+  }
+  if (k === '2') {
+    if (has([204, 205, 216, 217, 218, 250, 260, 270, 281])) return 71;
+    if (has([202, 203, 206, 207, 208, 209, 212, 213, 214, 215,
+             220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231])) return 61;
+    if (has([201, 210, 211])) return 2;                                                // 曇時々晴・曇のち晴
+    return 3;
+  }
+  if (k === '1') {
+    if (has([104, 105, 115, 116, 117, 160, 170, 181])) return 71;
+    if (has([102, 103, 106, 107, 108, 112, 113, 114, 118, 120, 121, 122, 123, 126, 127, 128])) return 80;
+    if (has([110, 111])) return 2;                                                     // 晴のち曇
+    return n === 100 ? 0 : 1;
+  }
+  return 3;
 }
 
 // ============================================================
