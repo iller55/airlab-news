@@ -140,7 +140,7 @@
 </div>
 
 <script>
-const VERSION = '2026-09-13h';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-10-08a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -180,7 +180,10 @@ const FC_HTML = `
 </div>
 `;
 // ---------- 状態 ----------
+const DROP_TABS = ['jl', 'mens'];   // 廃止したタブ（2026-10-08）。裏方が古い一覧を返しても出さない
+const keepTabs = ts => (ts || []).filter(t => !DROP_TABS.includes(t.id));
 let DATA = null, TABS = [], cur = ls('tab') || 'top';
+if (DROP_TABS.includes(cur)) { cur = 'top'; ls('tab', cur); }
 if (cur === 'fc') { cur = 'top'; ls('tab', cur); }   // FCはタブから外してヘッダーの🎫へ移した
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
 let read = new Set(JSON.parse(ls('read') || '[]'));
@@ -211,7 +214,7 @@ function call(fn) {
 function loadCache() {
   try {
     const t = ls('tabs'), d = ls('data');
-    if (t && d) { TABS = JSON.parse(t); DATA = JSON.parse(d); return true; }
+    if (t && d) { TABS = keepTabs(JSON.parse(t)); DATA = JSON.parse(d); return true; }
   } catch (e) {}
   return false;
 }
@@ -228,7 +231,7 @@ async function load(force) {
       call('getTabs'),                                        // タブ一覧は毎回取り直す（増えたタブを拾うため）
       call(force ? 'refreshNow' : 'getData'),
     ]);
-    const tabs = typeof t === 'string' ? JSON.parse(t) : t;
+    const tabs = keepTabs(typeof t === 'string' ? JSON.parse(t) : t);
     const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!hadCache) { TABS = tabs; DATA = data; saveCache(); render(); return; }
     if (JSON.stringify(tabs) !== JSON.stringify(TABS)) { TABS = tabs; saveCache(); renderTabs(); fitHeader(); }
@@ -286,21 +289,27 @@ function renderList() {
     // 「最新」は、前に出した記事（seen）と既読を後ろに回して、開くたびに顔ぶれが変わるようにする
     const fresh = it => !seen.has(it.u) && !read.has(it.u);
     const pick = (items, n) => { const a = items.filter(fresh); const b = items.filter(it => !fresh(it)); return a.concat(b).slice(0, n); };
-    // タブごとに候補を作って、順繰りに1本ずつ混ぜる（時間順にすると、記事の多い媒体ばかり上に来る）
-    const groups = [];
-    groups.push(pick(visible(DATA.tabs.local || []), 4).map(it => ({ ...it, tag: '鳥取県' })));
-    groups.push(pick(japan.filter(it => !used.has(it.u)), 8));
-    TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; groups.push(pick(visible(DATA.tabs[t.id] || []), 3).map(it => ({ ...it, tag: t.name }))); });
-    const opens = (parseInt(ls('opens') || '0', 10) + 1) % 1000; ls('opens', String(opens));
-    const start = opens % groups.length;                      // 開くたびに先頭のタブをずらす
-    const order = groups.slice(start).concat(groups.slice(0, start));
-    const mix = [];
-    for (let i = 0; mix.length < 60; i++) {
-      let any = false;
-      order.forEach(g => { if (g[i]) { mix.push(g[i]); any = true; } });
-      if (!any) break;
-    }
-    html += '<div class="sec">最新</div>' + mix.map(card).join('');
+    // トップの主役はニュース（2026-10-08 iller「ニュースが少ない。他のタブの記事が目立ちすぎる」）。
+    // 上にニュース20本＋鳥取5本を新しい順、ほかのタブは1本ずつ下にまとめる。
+    // ニュースは媒体ごとに順繰りで拾う（本数の多い媒体だけで埋まらないように）
+    const spread = (items, n) => {
+      const by = {}; pick(items, items.length).forEach(it => { (by[it.s] = by[it.s] || []).push(it); });
+      const qs = Object.values(by); const out = [];
+      for (let i = 0; out.length < n; i++) {
+        let any = false;
+        qs.forEach(q => { if (q[i] && out.length < n) { out.push(q[i]); any = true; } });
+        if (!any) break;
+      }
+      return out;
+    };
+    const news = spread(japan.filter(it => !used.has(it.u)), 20)
+      .concat(pick(visible(DATA.tabs.local || []), 5).map(it => ({ ...it, tag: '鳥取県' })))
+      .sort((a, b) => (b.d || 0) - (a.d || 0));
+    const others = [];
+    TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; pick(visible(DATA.tabs[t.id] || []), 1).forEach(it => others.push({ ...it, tag: t.name })); });
+    const mix = news.concat(others);
+    html += '<div class="sec">ニュース</div>' + news.map(card).join('');
+    if (others.length) html += '<div class="sec">ほかのタブから</div>' + others.map(card).join('');
     mix.forEach(it => seen.add(it.u));
     if (seen.size > 600) seen = new Set([...seen].slice(-450));
     ls('seen', JSON.stringify([...seen]));
