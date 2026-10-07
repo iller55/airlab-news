@@ -83,6 +83,15 @@ const TABS = [
     { name: 'TBS NEWS DIG', url: gn('site:newsdig.tbs.co.jp') },
     { name: 'テレ朝news', url: gn('site:news.tv-asahi.co.jp') },
     { name: '日テレNEWS', url: gn('site:news.ntv.co.jp') },
+    // 2026-10-08 追加（iller「ニュースのソースが少ない」）
+    { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat6.xml' },            // 国際
+    { name: 'Yahoo!ニュース', url: 'https://news.yahoo.co.jp/rss/topics/top-picks.xml' },
+    { name: '読売新聞', url: gn('site:yomiuri.co.jp') },
+    { name: '毎日新聞', url: gn('site:mainichi.jp') },
+    { name: '産経新聞', url: gn('site:sankei.com') },
+    { name: '日本経済新聞', url: gn('site:nikkei.com') },
+    { name: '時事通信', url: gn('site:jiji.com') },
+    { name: 'FNN', url: gn('site:fnn.jp') },
   ]},
   { id: 'tech', name: 'テクノロジー', color: '#5d5f9e', feeds: [
     { name: 'ITmedia', url: 'https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml' },
@@ -110,18 +119,6 @@ const TABS = [
     { name: 'くるまのニュース', url: 'https://kuruma-news.jp/feed' },
   ]},
   // K-POP: 好きなグループの話だけ（only に当たらない記事は捨てる。ボーイズはここで消える）
-  // JLラングラー: ジープの話だけ（ジーンズの Wrangler を弾く）
-  { id: 'jl', name: 'JLラングラー', color: '#61703f',
-    only: /(?<![A-Za-z])(Jeep|Wrangler|JL|JK|Rubicon|Sahara|Unlimited)(?![A-Za-z])|ジープ|ラングラー|ルビコン|サハラ|アンリミテッド/i,
-    not: /ガリバー|中古車|在庫|入荷|買取|販売店|見積|残価|自動車保険|jeep-japan/i,
-    feeds: [
-    { name: 'ラングラー', url: gn('ジープ ラングラー') },
-    { name: 'カスタムパーツ', url: gn('ラングラー カスタムパーツ') },
-    { name: 'Wrangler', url: gnEn('Jeep Wrangler') },
-    { name: 'Rubicon/4xe', url: gnEn('Wrangler 4xe OR Rubicon') },
-    { name: 'Off-road', url: gnEn('Jeep off-road') },
-    { name: 'SEMA', url: gnEn('SEMA Show Jeep') },
-  ]},
   { id: 'kpop', name: 'K-POP', color: '#8c5a86',
     only: KPOP_ONLY,
     feeds: [
@@ -143,11 +140,6 @@ const TABS = [
     { name: 'UNCHILD', url: gn('UNCHILD K-POP') },
     { name: 'RESCENE', url: gn('RESCENE') },
     { name: 'aespa', url: gn('aespa') },
-  ]},
-  { id: 'mens', name: 'メンズスタイル', color: '#4a6f8f', feeds: [
-    { name: "MEN'S NON-NO", url: 'https://www.mensnonno.jp/feed/' },
-    { name: 'GQ JAPAN', url: 'https://www.gqjapan.jp/feed/rss' },
-    { name: 'Esquire', url: 'https://www.esquire.com/jp/rss/all.xml/' },
   ]},
   { id: 'pogo', name: 'ポケモンGO', color: '#4d7d8c', feeds: [
     { name: 'Pokémon GO 公式', url: 'https://pokemongo.com/feed?hl=ja', jaOnly: true },   // 英語版の重複は捨てる
