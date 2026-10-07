@@ -18,7 +18,7 @@ const DATA_FILE = 'airlab_news_data.json';   // Driveに置くキャッシュ
 const MAX_PER_FEED = 40;                     // 1媒体あたり最大件数
 const MAX_PER_TAB = 150;                     // 1タブあたり最大件数
 const MAX_AGE_DAYS = 4;                      // これより古い記事は捨てる
-const DROP_SOURCES = ['YouTube'];            // この媒体名の記事は全タブで捨てる（動画など）
+const DROP_SOURCES = ['YouTube', 'NHK'];     // この媒体名の記事は全タブで捨てる（動画など。NHKは開くたびに受信契約の確認が出るので外した 2026-10-08）
 const SUMMARY_LEN = 110;                     // 要約の文字数
 
 // Googleニュース検索をRSSとして使う（公式RSSが無い媒体用）
@@ -74,17 +74,12 @@ const TABS = [
     { name: 'TSK', url: gn('site:fnn.jp 鳥取') },
   ]},
   { id: 'japan', name: '国内', color: '#3f7d5c', feeds: [
-    { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat0.xml' },
-    { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat1.xml' },
-    { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat4.xml' },
-    { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat5.xml' },
     { name: '朝日新聞', url: 'https://www.asahi.com/rss/asahi/newsheadlines.rdf' },
     { name: '共同通信', url: gn('site:47news.jp') },
     { name: 'TBS NEWS DIG', url: gn('site:newsdig.tbs.co.jp') },
     { name: 'テレ朝news', url: gn('site:news.tv-asahi.co.jp') },
     { name: '日テレNEWS', url: gn('site:news.ntv.co.jp') },
     // 2026-10-08 追加（iller「ニュースのソースが少ない」）
-    { name: 'NHK', url: 'https://www.nhk.or.jp/rss/news/cat6.xml' },            // 国際
     { name: 'Yahoo!ニュース', url: 'https://news.yahoo.co.jp/rss/topics/top-picks.xml' },
     { name: '読売新聞', url: gn('site:yomiuri.co.jp') },
     { name: '毎日新聞', url: gn('site:mainichi.jp') },
