@@ -140,7 +140,7 @@
 </div>
 
 <script>
-const VERSION = '2026-10-08a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-10-12a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -325,10 +325,21 @@ function renderList() {
 }
 
 const BYURL = {};
+// くるまのニュースは、サイト側のキャッシュに PC 用の画面が入っていると、iPhone にも PC 用（字が小さい横長の画面）を返すことがある。
+// URL の後ろに毎回ちがう印を付けるとキャッシュを通らず、スマホ用の画面が返る（2026-10-12 実測）
+const BUST_HOSTS = ['kuruma-news.jp'];
+function linkFor(u) {
+  try {
+    const h = new URL(u).hostname;
+    if (BUST_HOSTS.some(d => h === d || h.endsWith('.' + d))) return u + (u.includes('?') ? '&' : '?') + 'r=' + Date.now();
+  } catch (e) {}
+  return u;
+}
+
 function card(it) {
   BYURL[it.u] = it;
   const img = it.i ? `<img src="${it.i}" loading="lazy" alt="" onerror="this.remove()">` : '';
-  return `<a class="item ${read.has(it.u) ? 'read' : ''}" href="${it.u}" target="_blank" data-u="${it.u}"><div class="tx"><div class="ti">${esc(it.t)}</div>${it.x ? `<div class="sm">${esc(it.x)}</div>` : ''}<div class="mt">${it.tag && it.tag !== it.s ? `<b>${esc(it.tag)}</b> · ` : ''}${esc(it.s)} · ${ago(it.d)}</div></div>${img}</a>`;
+  return `<a class="item ${read.has(it.u) ? 'read' : ''}" href="${linkFor(it.u)}" target="_blank" data-u="${it.u}"><div class="tx"><div class="ti">${esc(it.t)}</div>${it.x ? `<div class="sm">${esc(it.x)}</div>` : ''}<div class="mt">${it.tag && it.tag !== it.s ? `<b>${esc(it.tag)}</b> · ` : ''}${esc(it.s)} · ${ago(it.d)}</div></div>${img}</a>`;
 }
 
 // 同じ話を書いている記事をまとめる（媒体が2つ以上のものだけ）
