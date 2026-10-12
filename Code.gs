@@ -293,10 +293,10 @@ function refreshBody_(start) {
 
   // タブ内の重複を消して新しい順に
   Object.keys(byTab).forEach(id => {
-    const seen = {};
+    const seen = {}; const keys = [];
     byTab[id] = byTab[id]
       .map((it, i) => ({ it: it, i: i })).sort((a, b) => (aggRank_(a.it.s) - aggRank_(b.it.s)) || (a.i - b.i)).map(o => o.it)   // 元の媒体を先に
-      .filter(it => { const k = normTitle_(it.t); if (seen[it.u] || seen[k]) return false; seen[it.u] = seen[k] = 1; return true; })
+      .filter(it => { const k = normTitle_(it.t); if (seen[it.u] || sameStory_(keys, k)) return false; seen[it.u] = 1; keys.push(k); return true; })
       .sort((a, b) => (b.d || 0) - (a.d || 0))
       .slice(0, MAX_PER_TAB);
   });
@@ -500,6 +500,17 @@ function normTitle_(t) {
 // 同じ記事が複数あるとき、元の媒体のものを残す（まとめサイト経由は後回し）
 const AGG_SOURCES = ['Yahoo!ニュース', 'ｄメニューニュース', 'dメニューニュース', 'Infoseek', 'ライブドアニュース', 'gooニュース', 'goo ニュース', 'MSN', 'エキサイトニュース', 'ニフティニュース'];
 function aggRank_(s) { return AGG_SOURCES.indexOf(s) >= 0 ? 1 : 0; }
+
+// 同じ記事か。題名が同じか、片方の題名の後ろに何か足しただけ（「…（テレビ朝日系（ANN））」「…（Jタウンネット）」など）なら同じとみなす
+function sameStory_(keys, k) {
+  for (let i = 0; i < keys.length; i++) {
+    const p = keys[i];
+    if (p === k) return true;
+    const a = p.length < k.length ? p : k, b = p.length < k.length ? k : p;
+    if (a.length >= 12 && b.indexOf(a) === 0) return true;
+  }
+  return false;
+}
 
 // ============================================================
 // 天気
