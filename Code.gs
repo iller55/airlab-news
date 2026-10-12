@@ -295,6 +295,7 @@ function refreshBody_(start) {
   Object.keys(byTab).forEach(id => {
     const seen = {};
     byTab[id] = byTab[id]
+      .map((it, i) => ({ it: it, i: i })).sort((a, b) => (aggRank_(a.it.s) - aggRank_(b.it.s)) || (a.i - b.i)).map(o => o.it)   // 元の媒体を先に
       .filter(it => { const k = normTitle_(it.t); if (seen[it.u] || seen[k]) return false; seen[it.u] = seen[k] = 1; return true; })
       .sort((a, b) => (b.d || 0) - (a.d || 0))
       .slice(0, MAX_PER_TAB);
@@ -486,9 +487,19 @@ function parseDate_(s) {
   return 0;
 }
 
+// まとめサイト経由の同じ記事を1本にするための題名の正規化。
+// 「…（BSS山陰放送）」「… | BSSニュース | BSS山陰放送 (1ページ)」「…（2026年10月11日掲載）」のような、後ろに付く媒体名・掲載日・ページを落としてから比べる
 function normTitle_(t) {
-  return String(t).toLowerCase().replace(/[\s　、。・「」『』（）()【】\[\]!?！？:：\-–—~〜…]/g, '').slice(0, 40);
+  let s = String(t);
+  const p = s.search(/\s*[|｜]/);
+  if (p >= 12) s = s.slice(0, p);
+  for (let i = 0; i < 3; i++) s = s.replace(/\s*[（(][^（）()]{0,24}(放送|テレビ|新聞|通信|ニュース|NEWS|掲載|ページ)[^（）()]{0,12}[）)]\s*$/i, '');
+  return s.toLowerCase().replace(/[\s　、。・「」『』（）()【】\[\]!?！？:：\-–—~〜…]/g, '').slice(0, 40);
 }
+
+// 同じ記事が複数あるとき、元の媒体のものを残す（まとめサイト経由は後回し）
+const AGG_SOURCES = ['Yahoo!ニュース', 'ｄメニューニュース', 'dメニューニュース', 'Infoseek', 'ライブドアニュース', 'gooニュース', 'goo ニュース', 'MSN', 'エキサイトニュース', 'ニフティニュース'];
+function aggRank_(s) { return AGG_SOURCES.indexOf(s) >= 0 ? 1 : 0; }
 
 // ============================================================
 // 天気
