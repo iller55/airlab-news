@@ -67,7 +67,9 @@ const KPOP_ONLY = new RegExp(
 
 // ---------- タブと媒体 ----------
 const TABS = [
-  { id: 'local', name: '鳥取県', color: '#a8683a', feeds: [
+  { id: 'local', name: '鳥取県', color: '#a8683a',
+    not: /^(?![^|]*(鳥取|島根))[^|]*震度[0-9０-９][^|]*地震詳細/,   // 鳥取・島根以外の地震速報は捨てる（題名の最初の | より前だけを見る。後ろの「BSS山陰放送」に釣られないため）
+    feeds: [
     { name: '鳥取のニュース', url: gn('鳥取県') },
     { name: 'BSS山陰放送', url: gn('山陰放送') },
     { name: 'TSK', url: gn('site:fnn.jp 鳥取') },
@@ -250,7 +252,7 @@ function refreshBody_(start) {
         if (m.not && m.not.test(it.t + ' ' + (it.x || ''))) return;                // タブの「これは捨てる」ルール
         if (m.only && !m.only.test(it.t + ' ' + (it.x || ''))) return;              // タブの「これだけ」ルール（題名＋要約で判定）
         it.s = it.s || m.feed.name;
-        if (DROP_SOURCES.indexOf(it.s) >= 0) return;
+        if (dropSrc_(it.s)) return;
         byTab[m.tab].push(it);
       });
     } catch (err) { errors.push(m.feed.name + ' ' + err); }
@@ -277,7 +279,7 @@ function refreshBody_(start) {
   const jaOnlySrc = {}; TABS.forEach(t => t.feeds.forEach(f => { if (f.jaOnly) jaOnlySrc[f.name] = 1; }));
   const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
   const notOf  = {}; TABS.forEach(t => { if (t.not)  notOf[t.id]  = t.not;  });
-  const dropOld_ = (id, it) => DROP_SOURCES.indexOf(it.s) >= 0 || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || ''))) || (notOf[id] && notOf[id].test(it.t + ' ' + (it.x || '')));
+  const dropOld_ = (id, it) => dropSrc_(it.s) || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || ''))) || (notOf[id] && notOf[id].test(it.t + ' ' + (it.x || '')));
   let old = null;
   const tc = Date.now();
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
@@ -319,6 +321,11 @@ function refreshBody_(start) {
 // ============================================================
 // フィード解析（RSS2 / Atom / RSS1.0 RDF）
 // ============================================================
+// 捨てる媒体か。NHK は「NHKニュース」など名前が揺れるので、頭が NHK なら全部捨てる
+function dropSrc_(s) {
+  return DROP_SOURCES.indexOf(s) >= 0 || /^NHK/i.test(String(s || ''));
+}
+
 function parseFeed_(xml) {
   xml = xml.replace(/^\uFEFF/, '').trim();
   if (xml.length > 1500000) throw new Error('too large ' + xml.length);          // 1.5MB超は解析しない（固まる元）
