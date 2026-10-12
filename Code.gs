@@ -18,7 +18,7 @@ const DATA_FILE = 'airlab_news_data.json';   // Driveに置くキャッシュ
 const MAX_PER_FEED = 40;                     // 1媒体あたり最大件数
 const MAX_PER_TAB = 150;                     // 1タブあたり最大件数
 const MAX_AGE_DAYS = 4;                      // これより古い記事は捨てる
-const DROP_SOURCES = ['YouTube', 'NHK'];     // この媒体名の記事は全タブで捨てる（動画など。NHKは開くたびに受信契約の確認が出るので外した 2026-10-08）
+const DROP_SOURCES = ['YouTube', 'NHK', '日本海新聞', '鳥取県ニュース'];     // 日本海新聞は会員限定で読めないので外した（2026-10-12。'鳥取県ニュース' はその旧ラベル） // この媒体名の記事は全タブで捨てる（動画など。NHKは開くたびに受信契約の確認が出るので外した 2026-10-08）
 const SUMMARY_LEN = 110;                     // 要約の文字数
 
 // Googleニュース検索をRSSとして使う（公式RSSが無い媒体用）
@@ -68,8 +68,7 @@ const KPOP_ONLY = new RegExp(
 // ---------- タブと媒体 ----------
 const TABS = [
   { id: 'local', name: '鳥取県', color: '#a8683a', feeds: [
-    { name: '日本海新聞', url: gn('site:nnn.co.jp 鳥取') },
-    { name: '鳥取県ニュース', url: gn('鳥取県') },
+    { name: '鳥取のニュース', url: gn('鳥取県') },
     { name: 'BSS山陰放送', url: gn('山陰放送') },
     { name: 'TSK', url: gn('site:fnn.jp 鳥取') },
   ]},
@@ -448,6 +447,7 @@ function finishItem_(it, content) {
   const gm = it.t.match(/^(.*)\s[-–]\s([^-–]{1,30})$/);
   if (gm && /news\.google\.com/.test(it.u)) { it.t = gm[1].trim(); it.s = it.s || gm[2].trim(); }
   it.t = decode_(it.t).replace(/\s+/g, ' ').trim();
+  if (/(^|\.)nnn\.co\.jp$/i.test(it.s)) it.s = '日本海新聞';   // 媒体名がドメインで来る日本海新聞（DROP_SOURCES で捨てる）
   if (/^[\w.-]+\.[a-z]{2,}$/i.test(it.s)) it.s = '';        // 媒体名がドメインだけなら捨てて feed 名を使う
   it.s = String(it.s).split(/\s*[|｜]\s*/)[0].trim().slice(0, 24);   // 「A | B | C」みたいに長い媒体名は最初だけ
   if (!it.i) { const im = (it.x + content).match(/<img[^>]*src="(https?:[^"]+)"/i); if (im) it.i = im[1]; }
