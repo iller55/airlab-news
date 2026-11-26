@@ -154,7 +154,7 @@
 </div>
 
 <script>
-const VERSION = '2026-11-26e';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-11-27a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -293,8 +293,9 @@ function renderWeather() {
 // 裏方が古いデータを返しているあいだも出さないもの：ハングルの題名、広告の壁が出る媒体
 const HANGUL = /[\uac00-\ud7a3]/;
 const WALL_SRC = ['TBS NEWS DIG'];
+const WALL_HOSTS = /^https?:\/\/([^\/]+\.)?(newsdig\.tbs\.co\.jp|kuruma-news\.jp)\//;   // 広告の壁が出るサイト（裏方が Yahoo! 版に切り替えるまでの間も出さない）
 function visible(items) {
-  return items.filter(it => !hidden.has(it.u) && !muteSrc.has(it.s) && !mute.some(m => it.t.includes(m)) && !HANGUL.test(it.t) && !HANGUL.test(it.s || '') && !WALL_SRC.includes(it.s));
+  return items.filter(it => !hidden.has(it.u) && !muteSrc.has(it.s) && !mute.some(m => it.t.includes(m)) && !HANGUL.test(it.t) && !HANGUL.test(it.s || '') && !WALL_SRC.includes(it.s) && !WALL_HOSTS.test(it.u));
 }
 // 主なニュース（裏方が Yahoo!トピックスから集めたもの）を記事の形にそろえる
 const PICK_CAT = { domestic: '国内', world: '国際', business: '経済', it: 'IT', science: '科学' };

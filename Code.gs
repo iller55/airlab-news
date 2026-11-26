@@ -35,6 +35,9 @@ function yh(id) { return 'https://news.yahoo.co.jp/rss/media/' + id + '/all.xml'
 function yt(cat) { return 'https://news.yahoo.co.jp/rss/topics/' + cat + '.xml'; }
 
 const HANGUL = /[\uac00-\ud7a3]/;
+// 開くと「広告ブロックを外せ」という壁が出るサイト。ここへ直接飛ぶ記事は捨てて、同じ媒体の Yahoo!ニュース版で読む
+//   newsdig.tbs.co.jp（2026-11-26）、kuruma-news.jp（2026-11-27）
+const WALL_HOSTS = /^https?:\/\/([^\/]+\.)?(newsdig\.tbs\.co\.jp|kuruma-news\.jp)\//;
 // 記事ではないもの（写真ページ・動画だけ・番組の宣伝・会員向けサービスの入口）
 const JUNK_TITLE = /^画像・写真|^写真特集|^【動画】|^【ノーカット】|【ノーカット】|iJAMP|every\.特集|^時事ドットコム|の写真・画像|^\[写真\]|フォトギャラリー|ライブ配信中|^【速報中】|\(@[\w]+\) on X$| on X$/;
 // スポーツと芸能（ニュースのタブとトップには入れない）。題名で判定するので取りこぼしはある
@@ -186,7 +189,7 @@ const TABS = [
     { name: 'Car Watch', url: 'https://car.watch.impress.co.jp/data/rss/1.0/car/feed.rdf' },
     { name: 'レスポンス', url: 'https://response.jp/rss20/index.rdf' },
     { name: 'webCG', url: 'https://www.webcg.net/list/feed/rss' },
-    { name: 'くるまのニュース', url: 'https://kuruma-news.jp/feed' },
+    { name: 'くるまのニュース', url: yh('kurumans') },   // 元サイトは広告の壁が出るので Yahoo!ニュース版（2026-11-27）
   ]},
   // K-POP: 好きなグループの話だけ（only に当たらない記事は捨てる。ボーイズはここで消える）
   { id: 'kpop', name: 'K-POP', color: '#8c5a86',
@@ -325,6 +328,7 @@ function refreshBody_(start) {
         if (it.d && it.d < cutoff) return;
         if (m.feed.jaOnly && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) return;   // 日本語が無い＝英語版
         if (HANGUL.test(it.t)) return;                                             // ハングルの題名は読めないので捨てる
+        if (WALL_HOSTS.test(it.u)) return;                                         // 広告の壁が出るサイトへ直接飛ぶ記事
         if (m.not && hit_(m.not, it.t + ' ' + (it.x || ''), it)) return;               // タブの「これは捨てる」ルール
         if (m.only && !hit_(m.only, it.t + ' ' + (it.x || ''), it)) return;          // タブの「これだけ」ルール（題名＋要約で判定。関数なら記事ごと渡す）
         it.s = it.s || m.feed.name;
@@ -357,7 +361,7 @@ function refreshBody_(start) {
   const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
   const notOf  = {}; TABS.forEach(t => { if (t.not)  notOf[t.id]  = t.not;  });
   const srcOf = {}; TABS.forEach(t => { if (t.dropSrc) srcOf[t.id] = t.dropSrc; });
-  const dropOld_ = (id, it) => dropSrc_(it.s) || HANGUL.test(it.t) || HANGUL.test(it.s) || (srcOf[id] && srcOf[id].test(it.s)) || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !hit_(onlyOf[id], it.t + ' ' + (it.x || ''), it)) || (notOf[id] && hit_(notOf[id], it.t + ' ' + (it.x || ''), it));
+  const dropOld_ = (id, it) => dropSrc_(it.s) || WALL_HOSTS.test(it.u) || HANGUL.test(it.t) || HANGUL.test(it.s) || (srcOf[id] && srcOf[id].test(it.s)) || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !hit_(onlyOf[id], it.t + ' ' + (it.x || ''), it)) || (notOf[id] && hit_(notOf[id], it.t + ' ' + (it.x || ''), it));
   let old = null;
   const tc = Date.now();
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
