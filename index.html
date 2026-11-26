@@ -154,7 +154,7 @@
 </div>
 
 <script>
-const VERSION = '2026-11-26c';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-11-26d';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -196,7 +196,7 @@ const FC_HTML = `
 // ---------- 状態 ----------
 const DROP_TABS = ['jl', 'mens'];   // 廃止したタブ（2026-10-08）。裏方が古い一覧を返しても出さない
 const keepTabs = ts => (ts || []).filter(t => !DROP_TABS.includes(t.id));
-let DATA = null, TABS = [], cur = ls('tab') || 'top';
+let DATA = null, TABS = [], cur = 'top';   // 開いたときは必ずトップから（2026-11-26 iller「タスクキルして開き直したらトップを表示」。前は最後に見ていたタブを覚えていた）
 if (DROP_TABS.includes(cur)) { cur = 'top'; ls('tab', cur); }
 if (cur === 'fc') { cur = 'top'; ls('tab', cur); }   // FCはタブから外してヘッダーの🎫へ移した
 let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
