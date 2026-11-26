@@ -52,6 +52,8 @@
   main.slideL { animation: slideL .16s ease-out; }
   main.slideR { animation: slideR .16s ease-out; }
   main, #wx { touch-action: pan-y; }   /* 横の動きはブラウザに渡さない（縦のスクロールだけ） */
+  /* 横にはらっている間だけ出す、隣のタブの中身（画面の上端から見せる） */
+  #peek { position: fixed; left: 0; right: 0; top: var(--head, 96px); bottom: 0; overflow: hidden; background: var(--bg); z-index: 5; will-change: transform; }
   .item img { -webkit-user-drag: none; }
   /* トップの先頭の 1 本は写真を大きく */
   .item.lead { display: block; padding-top: 12px; }
@@ -71,7 +73,7 @@
   .cluster .src { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .cluster .src a { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: #ffffff14; color: #cfd8e3; }
   .empty { padding: 40px 20px; text-align: center; color: var(--dim); font-size: 14px; }
-  .fab { position: fixed; right: 16px; bottom: calc(16px + var(--bot)); width: 48px; height: 48px; border-radius: 50%; background: var(--acc); color: #fff; border: 0; font-size: 22px; box-shadow: 0 6px 20px #0008; }
+  .fab { z-index: 6; position: fixed; right: 16px; bottom: calc(16px + var(--bot)); width: 48px; height: 48px; border-radius: 50%; background: var(--acc); color: #fff; border: 0; font-size: 22px; box-shadow: 0 6px 20px #0008; }
   .fab.spin { animation: sp 1s linear infinite; }
   @keyframes sp { to { transform: rotate(360deg); } }
   .toast { position: fixed; left: 50%; bottom: calc(80px + var(--bot)); transform: translateX(-50%); background: #2a2f37; color: #fff; padding: 8px 14px; border-radius: 20px; font-size: 13px; opacity: 0; transition: .3s; pointer-events: none; }
@@ -152,7 +154,7 @@
 </div>
 
 <script>
-const VERSION = '2026-11-26b';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-11-26c';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -201,6 +203,7 @@ let mute = (ls('mute') || '').split('\n').map(s => s.trim()).filter(Boolean);
 let read = new Set(JSON.parse(ls('read') || '[]'));
 let muteSrc = new Set(JSON.parse(ls('muteSrc') || '[]'));
 let hidden = new Set(JSON.parse(ls('hidden') || '[]'));
+let hswipe = false;   // 横にはらっている最中（引っ張って更新を止めるため）
 let seen = new Set(JSON.parse(ls('seen') || '[]'));   // 「最新」に出したことがある記事
 function ls(k, v) { try { if (v === undefined) return localStorage.getItem('aln_' + k); localStorage.setItem('aln_' + k, v); } catch (e) { return null; } }
 
@@ -301,11 +304,11 @@ function pickItems() {
     s: p.s || 'Yahoo!ニュース', tag: PICK_CAT[p.c] || '', top: p.top, live: p.live, c: p.c })));
 }
 
-function renderList() {
-  document.getElementById('wx').hidden = cur !== 'top';   // 天気はトップだけ
-  const main = document.getElementById('main');
-  let html = '', rest = [];
-  if (cur === 'top') {
+// タブの中身を作る（描かない）。指に付いて隣のタブを覗かせるときにも使うので、ここでは状態を変えない。
+// 返すもの: html＝先に描くぶん、rest＝後から足す記事、mark＝描いたら「出した」と記録する記事の URL
+function buildTab(id) {
+  let html = '', rest = [], mark = [];
+  if (id === 'top') {
     // 2026-11-26 作り直し。上から「主なニュース」（編集部が選んだ話。スポーツと芸能は裏方で除いてある）、
     // 「ほかの話題」（国内・国際・経済・IT・科学から順繰り）、「鳥取」、「ほかのタブから」。
     // 読んだ記事は後ろへ。「ほかの話題」より下は、前に出した記事（seen）も後ろに回して、開くたびに顔ぶれが変わるようにする
@@ -336,18 +339,30 @@ function renderList() {
     if (more.length) html += '<div class="sec">ほかの話題</div>' + more.map(it => card(it)).join('');
     if (local.length) html += '<div class="sec">鳥取</div>' + local.map(it => card(it)).join('');
     if (others.length) html += '<div class="sec">ほかのタブから</div>' + others.map(it => card(it)).join('');
-    more.concat(local, others).forEach(it => seen.add(it.u));
-    if (seen.size > 600) seen = new Set([...seen].slice(-450));
-    ls('seen', JSON.stringify([...seen]));
+    mark = more.concat(local, others).map(it => it.u);
   } else {
     // 150 本を一度に描くと、タブを切り替えた瞬間に待たされる（写真つきで重い）。
     // 先頭の 14 本だけ先に描いて、残りは画面が出たあとに足す
-    const items = visible(DATA.tabs[cur] || []);
+    const items = visible(DATA.tabs[id] || []);
     html = items.length ? items.slice(0, FIRST_PAINT).map(it => card(it)).join('') : '<div class="empty">まだ記事がない</div>';
     rest = items.slice(FIRST_PAINT);
   }
-  main.innerHTML = html || '<div class="empty">表示できる記事がない</div>';
+  return { id: id, html: html || '<div class="empty">表示できる記事がない</div>', rest: rest, mark: mark };
+}
+
+// pre: はらっている間に作っておいた中身（あればそれをそのまま描く。覗かせた内容と同じ物が出る）
+function renderList(pre) {
+  document.getElementById('wx').hidden = cur !== 'top';   // 天気はトップだけ
+  const main = document.getElementById('main');
+  const b = pre && pre.id === cur ? pre : buildTab(cur);
+  const rest = b.rest;
+  main.innerHTML = b.html;
   bindItems(main);
+  if (b.mark.length) {
+    b.mark.forEach(u => seen.add(u));
+    if (seen.size > 600) seen = new Set([...seen].slice(-450));
+    ls('seen', JSON.stringify([...seen]));
+  }
   const token = ++renderToken;
   if (rest.length) {
     requestAnimationFrame(() => setTimeout(() => {
@@ -487,6 +502,7 @@ function renderMutedSrc() {
   document.addEventListener('touchstart', e => { if (busy || window.scrollY > 2 || e.touches.length !== 1) { y0 = null; return; } y0 = e.touches[0].clientY; pull = 0; }, { passive: true });
   document.addEventListener('touchmove', e => {
     if (y0 === null || busy) return;
+    if (hswipe) { if (pull) { pull = 0; set(0); } return; }
     const dy = e.touches[0].clientY - y0;
     if (dy <= 0 || window.scrollY > 2) { if (pull) { pull = 0; set(0); } return; }
     pull = Math.min(dy * 0.5, 110); set(pull);
@@ -509,31 +525,96 @@ function switchTab(dir) {
   if (n < 0 || n >= ids.length) return;
   cur = ids[n]; ls('tab', cur);
   window.scrollTo(0, 0);
-  renderTabs();                // 先に上のタブの印を動かす（指を離した瞬間に反応が見える）
+  renderTabs();
   renderList();
-  // はらった向きに少しだけ滑り込ませる
   const main = document.getElementById('main');
   main.classList.remove('slideL', 'slideR'); void main.offsetWidth;
   main.classList.add(dir > 0 ? 'slideL' : 'slideR');
 }
-// 2026-11-26b：反応が鈍いと言われて直した。
-//   ・判定をゆるめた（前は 0.6 秒以内・60px 以上・横が縦の 2 倍以上。弧を描く親指のはらい、短いはじき、ゆっくりのはらいが落ちていた）
-//     今は 1.2 秒以内・横が縦の 1.2 倍以上・速いはらいは 30px、ゆっくりは 50px 以上
-//   ・天気の所から始めたはらいも効くようにした（前は記事の一覧の上だけ）
+
+// ---------- 横にはらってタブ切り替え（指に付いて動く） ----------
+// 2026-11-26c：iller「一瞬遅れて変わる。シュッとしないと変わらない。ゆっくりスワイプについてこない」。
+//   前は指を離した時にだけ判定していたので、動かしている間は何も起きなかった。
+//   今は、指が横へ 8px 動いた時点で画面が指に付いて動き、隣のタブの中身が横から見えてくる。
+//   離したとき、画面の 3 分の 1 を越えているか、その向きに勢いがあれば切り替え。足りなければ元に戻る。
+//   端のタブでは少しだけ動いて戻る。
 (function () {
-  let sx = 0, sy = 0, st = 0, on = false;
-  const skip = el => el.closest && el.closest('header, .sheet, .fab');
+  const W = () => window.innerWidth;
+  const EASE = 'transform .2s cubic-bezier(.2,.75,.3,1)';
+  let sx = 0, sy = 0, st = 0, lastX = 0, lastT = 0, vx = 0;
+  let mode = 'x';        // '' まだ決まっていない / 'h' 横（タブ切り替え）/ 'v' 縦（スクロール）/ 'x' 何もしない
+  let dir = 0;           // +1 次のタブ（左へはらう）/ -1 前のタブ
+  let peek = null, pre = null, busy = false;
+  const ids = () => ['top'].concat(TABS.map(t => t.id));
+  const movers = () => [document.getElementById('main'), document.getElementById('wx')];
+  const skip = el => !el.closest || el.closest('header, .sheet, .fab');
+  function place(x, tr) {
+    movers().forEach(el => { el.style.transition = tr || 'none'; el.style.transform = x ? 'translateX(' + x + 'px)' : ''; });
+    if (peek) { peek.style.transition = tr || 'none'; peek.style.transform = 'translateX(' + (x + dir * W()) + 'px)'; }
+  }
+  function dropPeek() { if (peek) { peek.remove(); peek = null; } pre = null; }
+  function makePeek(id) {
+    pre = buildTab(id);
+    peek = document.createElement('div'); peek.id = 'peek';
+    // トップへ戻るときは天気も一緒に見せる（#wx は他のタブでも中身は入ったまま隠してある）
+    peek.innerHTML = (id === 'top' ? document.getElementById('wx').innerHTML : '') + pre.html;
+    document.body.appendChild(peek);
+  }
+  function drag(dx) {
+    const list = ids(); const sign = dx < 0 ? 1 : -1; const target = list[list.indexOf(cur) + sign];
+    if (!target) { dropPeek(); dir = 0; place(dx * 0.25); return; }   // 端：少しだけ動く
+    if (!peek || dir !== sign) { dropPeek(); dir = sign; makePeek(target); }
+    place(dx);
+  }
+  function settle(go) {
+    busy = true; hswipe = false; mode = 'x';
+    if (go) {
+      const done = pre;
+      cur = done.id; ls('tab', cur); renderTabs();        // 上のタブの印は離した瞬間に動かす
+      place(-dir * W(), EASE);
+      setTimeout(() => {
+        renderList(done); window.scrollTo(0, 0);
+        dir = 0; place(0); dropPeek(); busy = false;
+      }, 210);
+    } else {
+      place(0, EASE);
+      setTimeout(() => { dir = 0; place(0); dropPeek(); busy = false; }, 210);
+    }
+  }
   document.addEventListener('touchstart', e => {
-    on = e.touches.length === 1 && !skip(e.target);
-    if (!on) return;
-    const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
+    if (busy || e.touches.length !== 1 || skip(e.target) || !DATA) { mode = 'x'; return; }
+    const t = e.touches[0]; sx = lastX = t.clientX; sy = t.clientY; st = lastT = performance.now(); vx = 0; mode = '';
   }, { passive: true });
-  document.addEventListener('touchend', e => {
-    if (!on) return; on = false;
-    const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; const ms = Date.now() - st;
-    if (ms < 1200 && Math.abs(dx) > (ms < 350 ? 30 : 50) && Math.abs(dx) > Math.abs(dy) * 1.2) switchTab(dx < 0 ? 1 : -1);
-  }, { passive: true });
-  document.addEventListener('touchcancel', () => { on = false; }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (mode === 'x' || mode === 'v') return;
+    const t = e.touches[0]; const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (!mode) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy) * 1.1) { mode = 'h'; hswipe = true; } else { mode = 'v'; return; }
+    }
+    if (e.cancelable) e.preventDefault();   // 横に動かしている間は縦にスクロールさせない
+    const now = performance.now();
+    if (now > lastT) vx = 0.5 * vx + 0.5 * (t.clientX - lastX) / (now - lastT);   // 指の速さ（px/ミリ秒）
+    lastX = t.clientX; lastT = now;
+    drag(dx);
+  }, { passive: false });
+  const end = e => {
+    if (mode === 'h') {
+      const dx = lastX - sx;
+      if (performance.now() - lastT > 120) vx = 0;   // 止めてから離したら勢いは無し
+      const flick = Math.abs(vx) > 0.3 && Math.sign(vx) === Math.sign(dx) && Math.abs(dx) > 12;
+      settle(!!peek && e.type !== 'touchcancel' && (Math.abs(dx) > W() * 0.33 || flick));
+      return;
+    }
+    if (mode === 'v' && e.type === 'touchend') {
+      // 縦と判定したあとで実は横へはらっていた（弧を描いた）ときの保険。離した時点の動きで決める
+      const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; const ms = performance.now() - st;
+      if (ms < 600 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) switchTab(dx < 0 ? 1 : -1);
+    }
+    mode = 'x';
+  };
+  document.addEventListener('touchend', end, { passive: true });
+  document.addEventListener('touchcancel', end, { passive: true });
 })();
 
 
