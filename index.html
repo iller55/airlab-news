@@ -46,6 +46,11 @@
   .item .mt { font-size: 12px; color: var(--dim); margin-top: 6px; }
   .item img { flex: 0 0 96px; width: 96px; height: 72px; object-fit: cover; border-radius: 8px; background: #222; }
   .item.read { opacity: .45; }
+  /* トップの先頭の 1 本は写真を大きく */
+  .item.lead { display: block; padding-top: 12px; }
+  .item.lead img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; margin: 0 0 10px; border-radius: 12px; }
+  .item.lead .ti { font-size: 21px; line-height: 1.35; font-weight: 700; }
+  .item.lead .sm { font-size: 14px; -webkit-line-clamp: 3; }
   .item, .cluster { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
   .sheet .chip { padding: 9px 12px; border-radius: 20px; background: #2a2f37; color: var(--fg); font-size: 14px; font-weight: 600; border: 0; flex: none; }
@@ -140,7 +145,7 @@
 </div>
 
 <script>
-const VERSION = '2026-10-12a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-11-26a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -275,8 +280,18 @@ function renderWeather() {
     + (w.text ? `<div class="wxtext">${esc(w.text)}</div>` : '');
 }
 
+// 裏方が古いデータを返しているあいだも出さないもの：ハングルの題名、広告の壁が出る媒体
+const HANGUL = /[\uac00-\ud7a3]/;
+const WALL_SRC = ['TBS NEWS DIG'];
 function visible(items) {
-  return items.filter(it => !hidden.has(it.u) && !muteSrc.has(it.s) && !mute.some(m => it.t.includes(m)));
+  return items.filter(it => !hidden.has(it.u) && !muteSrc.has(it.s) && !mute.some(m => it.t.includes(m)) && !HANGUL.test(it.t) && !HANGUL.test(it.s || '') && !WALL_SRC.includes(it.s));
+}
+// 主なニュース（裏方が Yahoo!トピックスから集めたもの）を記事の形にそろえる
+const PICK_CAT = { domestic: '国内', world: '国際', business: '経済', it: 'IT', science: '科学' };
+function pickItems() {
+  return visible(((DATA && DATA.picks) || []).map(p => ({
+    t: p.t, u: p.u || 'https://news.yahoo.co.jp/pickup/' + p.id, d: p.d, i: p.i || '', x: p.x || '',
+    s: p.s || 'Yahoo!ニュース', tag: PICK_CAT[p.c] || '', top: p.top, live: p.live, c: p.c })));
 }
 
 function renderList() {
@@ -284,38 +299,42 @@ function renderList() {
   const main = document.getElementById('main');
   let html = '';
   if (cur === 'top') {
-    const japan = visible(DATA.tabs.japan || []);
-    const used = new Set();   // 「いま大きい話」は廃止（2026-09-13）。国内記事は全部「最新」の候補に戻す
-    // 「最新」は、前に出した記事（seen）と既読を後ろに回して、開くたびに顔ぶれが変わるようにする
+    // 2026-11-26 作り直し。上から「主なニュース」（編集部が選んだ話。スポーツと芸能は裏方で除いてある）、
+    // 「ほかの話題」（国内・国際・経済・IT・科学から順繰り）、「鳥取」、「ほかのタブから」。
+    // 読んだ記事は後ろへ。「ほかの話題」より下は、前に出した記事（seen）も後ろに回して、開くたびに顔ぶれが変わるようにする
+    const unread = it => !read.has(it.u);
     const fresh = it => !seen.has(it.u) && !read.has(it.u);
     const pick = (items, n) => { const a = items.filter(fresh); const b = items.filter(it => !fresh(it)); return a.concat(b).slice(0, n); };
-    // トップの主役はニュース（2026-10-08 iller「ニュースが少ない。他のタブの記事が目立ちすぎる」）。
-    // 上にニュース20本＋鳥取5本を新しい順、ほかのタブは1本ずつ下にまとめる。
-    // ニュースは媒体ごとに順繰りで拾う（本数の多い媒体だけで埋まらないように）
-    const spread = (items, n) => {
-      const by = {}; pick(items, items.length).forEach(it => { (by[it.s] = by[it.s] || []).push(it); });
-      const qs = Object.values(by); const out = [];
-      for (let i = 0; out.length < n; i++) {
-        let any = false;
-        qs.forEach(q => { if (q[i] && out.length < n) { out.push(q[i]); any = true; } });
-        if (!any) break;
-      }
-      return out;
-    };
-    const news = spread(japan.filter(it => !used.has(it.u)), 20)
-      .concat(pick(visible(DATA.tabs.local || []), 5).map(it => ({ ...it, tag: '鳥取県' })))
-      .sort((a, b) => (b.d || 0) - (a.d || 0));
+    const picks = pickItems();
+    let main1 = [], more = [];
+    if (picks.length) {
+      const tops = picks.filter(p => p.top);
+      main1 = tops.filter(unread).concat(tops.filter(it => !unread(it)));
+      // 残りは分野ごとに順繰りで拾う（国内ばかりにならないように）。まだ出していないものが先
+      const rest = picks.filter(p => !p.top);
+      const order = ['domestic', 'world', 'business', 'it', 'science'];
+      const rr = list => { const qs = order.map(c => list.filter(p => p.c === c)); const out = [];
+        for (let i = 0; i < 8; i++) qs.forEach(q => { if (q[i]) out.push(q[i]); }); return out.concat(list.filter(p => !order.includes(p.c))); };
+      more = rr(rest.filter(fresh)).concat(rr(rest.filter(it => !fresh(it)))).slice(0, 8);
+    } else {
+      // 裏方がまだ古い（主なニュースが無い）ときは、ニュースのタブから新しい順に出す
+      main1 = pick(visible(DATA.tabs.japan || []), 12);
+    }
+    const local = pick(visible(DATA.tabs.local || []), 5);
     const others = [];
     TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; pick(visible(DATA.tabs[t.id] || []), 1).forEach(it => others.push({ ...it, tag: t.name })); });
-    const mix = news.concat(others);
-    html += '<div class="sec">ニュース</div>' + news.map(card).join('');
-    if (others.length) html += '<div class="sec">ほかのタブから</div>' + others.map(card).join('');
-    mix.forEach(it => seen.add(it.u));
+    // 先頭の 1 本は写真つきで大きく出す（まだ読んでいなくて写真がある最初の話）
+    const li = main1.findIndex(it => it.i && unread(it));
+    html += '<div class="sec">主なニュース</div>' + main1.map((it, i) => card(it, i === li)).join('');
+    if (more.length) html += '<div class="sec">ほかの話題</div>' + more.map(it => card(it)).join('');
+    if (local.length) html += '<div class="sec">鳥取</div>' + local.map(it => card(it)).join('');
+    if (others.length) html += '<div class="sec">ほかのタブから</div>' + others.map(it => card(it)).join('');
+    more.concat(local, others).forEach(it => seen.add(it.u));
     if (seen.size > 600) seen = new Set([...seen].slice(-450));
     ls('seen', JSON.stringify([...seen]));
   } else {
     const items = visible(DATA.tabs[cur] || []);
-    html = items.length ? items.map(card).join('') : '<div class="empty">まだ記事がない</div>';
+    html = items.length ? items.map(it => card(it)).join('') : '<div class="empty">まだ記事がない</div>';
   }
   main.innerHTML = html || '<div class="empty">表示できる記事がない</div>';
   main.querySelectorAll('[data-u]').forEach(a => {
@@ -336,10 +355,12 @@ function linkFor(u) {
   return u;
 }
 
-function card(it) {
+function card(it, lead) {
   BYURL[it.u] = it;
-  const img = it.i ? `<img src="${it.i}" loading="lazy" alt="" onerror="this.remove()">` : '';
-  return `<a class="item ${read.has(it.u) ? 'read' : ''}" href="${linkFor(it.u)}" target="_blank" data-u="${it.u}"><div class="tx"><div class="ti">${esc(it.t)}</div>${it.x ? `<div class="sm">${esc(it.x)}</div>` : ''}<div class="mt">${it.tag && it.tag !== it.s ? `<b>${esc(it.tag)}</b> · ` : ''}${esc(it.s)} · ${ago(it.d)}</div></div>${img}</a>`;
+  const img = it.i ? `<img src="${esc(it.i)}" loading="lazy" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
+  const tx = `<div class="tx"><div class="ti">${esc(it.t)}</div>${it.x ? `<div class="sm">${esc(it.x)}</div>` : ''}<div class="mt">${it.tag && it.tag !== it.s ? `<b>${esc(it.tag)}</b> · ` : ''}${esc(it.s)} · ${ago(it.d)}</div></div>`;
+  // 先頭の 1 本（lead）は写真が上、ほかは写真が右
+  return `<a class="item ${lead ? 'lead ' : ''}${read.has(it.u) ? 'read' : ''}" href="${esc(linkFor(it.u))}" target="_blank" data-u="${esc(it.u)}">${lead ? img + tx : tx + img}</a>`;
 }
 
 // 同じ話を書いている記事をまとめる（媒体が2つ以上のものだけ）
