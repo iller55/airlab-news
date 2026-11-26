@@ -46,6 +46,13 @@
   .item .mt { font-size: 12px; color: var(--dim); margin-top: 6px; }
   .item img { flex: 0 0 96px; width: 96px; height: 72px; object-fit: cover; border-radius: 8px; background: #222; }
   .item.read { opacity: .45; }
+  /* タブをはらって切り替えたとき、はらった向きに少しだけ滑り込む */
+  @keyframes slideL { from { transform: translateX(28px); opacity: .4; } to { transform: none; opacity: 1; } }
+  @keyframes slideR { from { transform: translateX(-28px); opacity: .4; } to { transform: none; opacity: 1; } }
+  main.slideL { animation: slideL .16s ease-out; }
+  main.slideR { animation: slideR .16s ease-out; }
+  main, #wx { touch-action: pan-y; }   /* 横の動きはブラウザに渡さない（縦のスクロールだけ） */
+  .item img { -webkit-user-drag: none; }
   /* トップの先頭の 1 本は写真を大きく */
   .item.lead { display: block; padding-top: 12px; }
   .item.lead img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; margin: 0 0 10px; border-radius: 12px; }
@@ -145,7 +152,7 @@
 </div>
 
 <script>
-const VERSION = '2026-11-26a';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-11-26b';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -297,7 +304,7 @@ function pickItems() {
 function renderList() {
   document.getElementById('wx').hidden = cur !== 'top';   // 天気はトップだけ
   const main = document.getElementById('main');
-  let html = '';
+  let html = '', rest = [];
   if (cur === 'top') {
     // 2026-11-26 作り直し。上から「主なニュース」（編集部が選んだ話。スポーツと芸能は裏方で除いてある）、
     // 「ほかの話題」（国内・国際・経済・IT・科学から順繰り）、「鳥取」、「ほかのタブから」。
@@ -333,11 +340,29 @@ function renderList() {
     if (seen.size > 600) seen = new Set([...seen].slice(-450));
     ls('seen', JSON.stringify([...seen]));
   } else {
+    // 150 本を一度に描くと、タブを切り替えた瞬間に待たされる（写真つきで重い）。
+    // 先頭の 14 本だけ先に描いて、残りは画面が出たあとに足す
     const items = visible(DATA.tabs[cur] || []);
-    html = items.length ? items.map(it => card(it)).join('') : '<div class="empty">まだ記事がない</div>';
+    html = items.length ? items.slice(0, FIRST_PAINT).map(it => card(it)).join('') : '<div class="empty">まだ記事がない</div>';
+    rest = items.slice(FIRST_PAINT);
   }
   main.innerHTML = html || '<div class="empty">表示できる記事がない</div>';
-  main.querySelectorAll('[data-u]').forEach(a => {
+  bindItems(main);
+  const token = ++renderToken;
+  if (rest.length) {
+    requestAnimationFrame(() => setTimeout(() => {
+      if (token !== renderToken) return;   // その間に別のタブへ移った
+      const box = document.createElement('div');
+      box.innerHTML = rest.map(it => card(it)).join('');
+      bindItems(box);
+      main.append(...box.childNodes);
+    }, 0));
+  }
+}
+const FIRST_PAINT = 14;
+let renderToken = 0;
+function bindItems(root) {
+  root.querySelectorAll('[data-u]').forEach(a => {
     a.addEventListener('click', e => { if (suppressClick) { e.preventDefault(); suppressClick = false; return; } markRead(a.dataset.u); });
     attachLongPress(a);
   });
@@ -357,7 +382,7 @@ function linkFor(u) {
 
 function card(it, lead) {
   BYURL[it.u] = it;
-  const img = it.i ? `<img src="${esc(it.i)}" loading="lazy" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
+  const img = it.i ? `<img src="${esc(it.i)}" loading="lazy" decoding="async" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
   const tx = `<div class="tx"><div class="ti">${esc(it.t)}</div>${it.x ? `<div class="sm">${esc(it.x)}</div>` : ''}<div class="mt">${it.tag && it.tag !== it.s ? `<b>${esc(it.tag)}</b> · ` : ''}${esc(it.s)} · ${ago(it.d)}</div></div>`;
   // 先頭の 1 本（lead）は写真が上、ほかは写真が右
   return `<a class="item ${lead ? 'lead ' : ''}${read.has(it.u) ? 'read' : ''}" href="${esc(linkFor(it.u))}" target="_blank" data-u="${esc(it.u)}">${lead ? img + tx : tx + img}</a>`;
@@ -482,16 +507,33 @@ function switchTab(dir) {
   const ids = ['top'].concat(TABS.map(t => t.id));
   const i = ids.indexOf(cur); const n = i + dir;
   if (n < 0 || n >= ids.length) return;
-  cur = ids[n]; ls('tab', cur); renderTabs(); renderList(); window.scrollTo(0, 0);
+  cur = ids[n]; ls('tab', cur);
+  window.scrollTo(0, 0);
+  renderTabs();                // 先に上のタブの印を動かす（指を離した瞬間に反応が見える）
+  renderList();
+  // はらった向きに少しだけ滑り込ませる
+  const main = document.getElementById('main');
+  main.classList.remove('slideL', 'slideR'); void main.offsetWidth;
+  main.classList.add(dir > 0 ? 'slideL' : 'slideR');
 }
+// 2026-11-26b：反応が鈍いと言われて直した。
+//   ・判定をゆるめた（前は 0.6 秒以内・60px 以上・横が縦の 2 倍以上。弧を描く親指のはらい、短いはじき、ゆっくりのはらいが落ちていた）
+//     今は 1.2 秒以内・横が縦の 1.2 倍以上・速いはらいは 30px、ゆっくりは 50px 以上
+//   ・天気の所から始めたはらいも効くようにした（前は記事の一覧の上だけ）
 (function () {
-  let sx = 0, sy = 0, st = 0;
-  const area = document.getElementById('main');
-  area.addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now(); }, { passive: true });
-  area.addEventListener('touchend', e => {
-    const t = e.changedTouches[0]; const dx = t.clientX - sx; const dy = t.clientY - sy;
-    if (Date.now() - st < 600 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) switchTab(dx < 0 ? 1 : -1);
+  let sx = 0, sy = 0, st = 0, on = false;
+  const skip = el => el.closest && el.closest('header, .sheet, .fab');
+  document.addEventListener('touchstart', e => {
+    on = e.touches.length === 1 && !skip(e.target);
+    if (!on) return;
+    const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
   }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!on) return; on = false;
+    const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; const ms = Date.now() - st;
+    if (ms < 1200 && Math.abs(dx) > (ms < 350 ? 30 : 50) && Math.abs(dx) > Math.abs(dy) * 1.2) switchTab(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  document.addEventListener('touchcancel', () => { on = false; }, { passive: true });
 })();
 
 
