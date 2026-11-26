@@ -18,8 +18,45 @@ const DATA_FILE = 'airlab_news_data.json';   // Driveに置くキャッシュ
 const MAX_PER_FEED = 40;                     // 1媒体あたり最大件数
 const MAX_PER_TAB = 150;                     // 1タブあたり最大件数
 const MAX_AGE_DAYS = 4;                      // これより古い記事は捨てる
-const DROP_SOURCES = ['YouTube', 'NHK', '日本海新聞', '鳥取県ニュース'];     // 日本海新聞は会員限定で読めないので外した（2026-10-12。'鳥取県ニュース' はその旧ラベル） // この媒体名の記事は全タブで捨てる（動画など。NHKは開くたびに受信契約の確認が出るので外した 2026-10-08）
+const DROP_SOURCES = ['YouTube', 'NHK', '日本海新聞', '鳥取県ニュース', 'TBS NEWS DIG'];   // TBS NEWS DIG は広告ブロックを外せという壁が出るので外した（2026-11-26）     // 日本海新聞は会員限定で読めないので外した（2026-10-12。'鳥取県ニュース' はその旧ラベル） // この媒体名の記事は全タブで捨てる（動画など。NHKは開くたびに受信契約の確認が出るので外した 2026-10-08）
 const SUMMARY_LEN = 110;                     // 要約の文字数
+
+// ---------- 2026-11-26 の作り直し ----------
+// iller「トップがつまらん。お前が思うように作り変えてくれ。ハングルは読めない」。
+//   ・記事は Yahoo!ニュースの配信ぶんを主に使う（全文が読める・壁が出ない・写真が付く）
+//   ・トップの「主なニュース」は Yahoo!トピックス（編集部が選んだ話）。スポーツとエンタメは除く
+//   ・朝日・毎日・日経（会員限定が多い）と TBS NEWS DIG（広告の壁）は外した
+//   ・ハングルの題名は全タブで捨てる
+const GEN = '2026-11-26a';   // これを変えると、国内・鳥取・K-POP の前回キャッシュを捨てて集め直す
+
+// Yahoo!ニュースの媒体別フィード（題名の後ろに「(媒体名)」が付く。写真と要約あり）
+function yh(id) { return 'https://news.yahoo.co.jp/rss/media/' + id + '/all.xml'; }
+// Yahoo!トピックス（編集部が選んだ 8 本。リンク先は pickup ページ）
+function yt(cat) { return 'https://news.yahoo.co.jp/rss/topics/' + cat + '.xml'; }
+
+const HANGUL = /[\uac00-\ud7a3]/;
+// 記事ではないもの（写真ページ・動画だけ・番組の宣伝・会員向けサービスの入口）
+const JUNK_TITLE = /^画像・写真|^写真特集|^【動画】|^【ノーカット】|【ノーカット】|iJAMP|every\.特集|^時事ドットコム|の写真・画像|^\[写真\]|フォトギャラリー|ライブ配信中|^【速報中】|\(@[\w]+\) on X$| on X$/;
+// スポーツと芸能（ニュースのタブとトップには入れない）。題名で判定するので取りこぼしはある
+const NOT_NEWS = new RegExp([
+  'プロ野球', '野球', '甲子園', '大谷翔平', '大谷', 'ドジャース', '大リーグ', 'MLB', '侍ジャパン', 'WBC',
+  'Jリーグ', 'J[1-4１-４]', 'サッカー', 'W杯', 'ワールドカップ', 'ボクシング', '防衛に成功', '王座', '大相撲', '力士', '横綱', '大関', '(初|春|夏|秋|九州|名古屋)場所',
+  '五輪', 'オリンピック', 'パラリンピック', 'ゴルフ', 'テニス', '卓球', 'バドミントン', 'バスケ', 'Bリーグ', 'NBA', 'ラグビー', 'バレーボール',
+  '駅伝', 'マラソン', 'フィギュア', 'スピードスケート', 'スキージャンプ', '柔道', 'レスリング', '競泳', '競馬', '騎手', '選手権', 'グランプリ',
+  '[0-9０-９]+勝目', '完封', '本塁打', 'ホームラン', '打点', '登板', '移籍', '契約更改', '自由契約', '戦力外', 'ドラフト', 'FA宣言', '現役引退',
+  '結婚を?発表', '熱愛', '離婚を?発表', '第[0-9０-９一二三四五]子', '妊娠を?発表', '女優', '俳優', '主演', '紅白', '歌手', 'アイドル', 'タレント', '芸人', 'お笑い', '声優',
+  '興行収入', '映画祭', 'STARTO', '乃木坂', '日向坂', '櫻坂', 'AKB', 'モデルの', 'グラビア', '占い', '星座'
+].join('|'));
+
+// 鳥取県タブ：島根だけの話は外す（山陰の放送局は島根の話が多い）
+const TOTTORI = /鳥取|米子|倉吉|境港|北栄|琴浦|湯梨浜|三朝|大山|岩美|八頭|智頭|若桜|日南町|日野|江府|伯耆|南部町|日吉津|とっとり|皆生|砂丘/;
+const SHIMANE = /島根|松江|出雲|浜田|益田|大田市|安来|江津|雲南|隠岐|津和野|奥出雲|邑南|美郷町|川本町|吉賀|飯南|海士|西ノ島|知夫|石見|宍道湖|アクアス/;
+const QUAKE_ELSEWHERE = /^(?![^|]*(鳥取|島根))[^|]*震度[0-9０-９][^|]*地震詳細/;   // 鳥取・島根以外の地震速報
+function notLocal_(s, it) { const t = it ? it.t : s; return QUAKE_ELSEWHERE.test(s) || JUNK_TITLE.test(t) || (SHIMANE.test(t) && !TOTTORI.test(t)); }   // 島根かどうかは題名だけで見る（要約に「山陰」「鳥取」が出るだけの記事を残さない）
+function notJunk_(s, it) { return JUNK_TITLE.test(it ? it.t : s); }
+function notNews_(s, it) { const t = it ? it.t : s; return JUNK_TITLE.test(t) || NOT_NEWS.test(t); }
+// ルールは正規表現でも関数でもいい
+function hit_(rule, s, it) { return typeof rule === 'function' ? !!rule(s, it) : rule.test(s); }
 
 // Googleニュース検索をRSSとして使う（公式RSSが無い媒体用）
 function gn(q) {
@@ -62,32 +99,31 @@ const KPOP_MEMBERS_KO = ['안유진', '장원영', '카리나', '닝닝', '지�
 
 const KPOP_ONLY = new RegExp(
   '(?<![A-Za-z])(' + KPOP_GROUPS_EN.concat(KPOP_MEMBERS_EN).join('|') + ')(?![A-Za-z])' +
-  '|(?<![ァ-ヶー])(' + KPOP_GROUPS_JA.concat(KPOP_MEMBERS_JA).join('|') + ')(?![ァ-ヶー])' +
-  '|(?<![가-힣])(' + KPOP_GROUPS_KO.concat(KPOP_MEMBERS_KO).join('|') + ')(?![가-힣])', 'i');
+  '|(?<![ァ-ヶー])(' + KPOP_GROUPS_JA.concat(KPOP_MEMBERS_JA).join('|') + ')(?![ァ-ヶー])', 'i');   // ハングルの名前は使わない（2026-11-26 iller「ハングルは読めない」）
 
 // ---------- タブと媒体 ----------
 const TABS = [
   { id: 'local', name: '鳥取県', color: '#a8683a',
-    not: /^(?![^|]*(鳥取|島根))[^|]*震度[0-9０-９][^|]*地震詳細/,   // 鳥取・島根以外の地震速報は捨てる（題名の最初の | より前だけを見る。後ろの「BSS山陰放送」に釣られないため）
+    not: notLocal_,
     feeds: [
-    { name: '鳥取のニュース', url: gn('鳥取県') },
-    { name: 'BSS山陰放送', url: gn('山陰放送') },
-    { name: 'TSK', url: gn('site:fnn.jp 鳥取') },
+    // 山陰の放送局と新聞を Yahoo!ニュースの配信で読む（BSS は元サイトだと広告の壁が出る）
+    { name: 'BSS山陰放送', url: yh('bss') },
+    { name: '日本海テレビ', url: yh('nkt') },
+    { name: 'TSKさんいん中央テレビ', url: yh('tsk') },
+    { name: '山陰中央新報', url: yh('saninchuo') },
+    { name: '中海テレビ放送', url: yh('chukaiv') },
   ]},
-  { id: 'japan', name: '国内', color: '#3f7d5c', feeds: [
-    { name: '朝日新聞', url: 'https://www.asahi.com/rss/asahi/newsheadlines.rdf' },
-    { name: '共同通信', url: gn('site:47news.jp') },
-    { name: 'TBS NEWS DIG', url: gn('site:newsdig.tbs.co.jp') },
-    { name: 'テレ朝news', url: gn('site:news.tv-asahi.co.jp') },
-    { name: '日テレNEWS', url: gn('site:news.ntv.co.jp') },
-    // 2026-10-08 追加（iller「ニュースのソースが少ない」）
-    { name: 'Yahoo!ニュース', url: 'https://news.yahoo.co.jp/rss/topics/top-picks.xml' },
-    { name: '読売新聞', url: gn('site:yomiuri.co.jp') },
-    { name: '毎日新聞', url: gn('site:mainichi.jp') },
-    { name: '産経新聞', url: gn('site:sankei.com') },
-    { name: '日本経済新聞', url: gn('site:nikkei.com') },
+  { id: 'japan', name: 'ニュース', color: '#3f7d5c',
+    not: notNews_,
+    feeds: [
+    { name: '共同通信', url: yh('kyodonews') },
+    { name: 'テレビ朝日', url: yh('ann') },
+    { name: '産経新聞', url: yh('san') },
+    { name: 'BBC News', url: yh('bbc') },
+    { name: 'CNN', url: yh('cnn') },
     { name: '時事通信', url: gn('site:jiji.com') },
-    { name: 'FNN', url: gn('site:fnn.jp') },
+    { name: '読売新聞', url: gn('site:yomiuri.co.jp') },
+    { name: 'ロイター', url: gn('site:jp.reuters.com') },
   ]},
   { id: 'tech', name: 'テクノロジー', color: '#5d5f9e', feeds: [
     { name: 'ITmedia', url: 'https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml' },
@@ -97,7 +133,9 @@ const TABS = [
     { name: 'テクノエッジ', url: 'https://www.techno-edge.net/rss20/index.rdf' },
     { name: 'BRIDGE', url: 'https://thebridge.jp/feed' },
   ]},
-  { id: 'claude', name: 'Claude', color: '#a75d3f', feeds: [
+  { id: 'claude', name: 'Claude', color: '#a75d3f',
+    dropSrc: /BigGo|Moomoo|moomoo|BeInCrypto|Investing\.com|株探|みんかぶ|Kabutan|FX/,   // 株・暗号資産の宣伝サイトは外す
+    feeds: [
     { name: 'Claude', url: gn('Anthropic Claude') },
     { name: 'Claude Code', url: gn('Claude Code') },
     { name: 'Anthropic', url: gn('Anthropic') },
@@ -117,12 +155,13 @@ const TABS = [
   // K-POP: 好きなグループの話だけ（only に当たらない記事は捨てる。ボーイズはここで消える）
   { id: 'kpop', name: 'K-POP', color: '#8c5a86',
     only: KPOP_ONLY,
+    not: notJunk_,
     feeds: [
     { name: 'Soompi', url: 'https://www.soompi.com/feed' },
     { name: 'Koreaboo', url: 'https://www.koreaboo.com/feed/' },
-    { name: '韓国 IVE/aespa', url: gnKo('아이브 OR 에스파 OR 여자아이들') },
-    { name: '韓国 ベモン/NMIXX', url: gnKo('베이비몬스터 OR 엔믹스 OR 리센느 OR 영파씨') },
-    { name: 'Kstyle', url: gn('site:news.kstyle.com') },
+    // 韓国現地（ハングル）のフィードは外した（2026-11-26）
+    { name: 'Kstyle', url: yh('kstylens') },
+    { name: 'モデルプレス', url: yh('mdpr') },
     { name: 'Kpop monster', url: 'https://www.kpopmonster.jp/?feed=rss2' },
     { name: 'wowkorea', url: gn('site:wowkorea.jp') },
     { name: 'danmee', url: 'https://danmee.jp/feed/' },
@@ -230,7 +269,7 @@ function refreshBody_(start) {
   TABS.forEach(tab => tab.feeds.forEach(f => {
     reqs.push({ url: f.url, muteHttpExceptions: true, followRedirects: true,
       headers: { 'User-Agent': 'Mozilla/5.0 (AIR LAB NEWS; personal RSS reader)' } });
-    meta.push({ tab: tab.id, feed: f, only: tab.only || null, not: tab.not || null });
+    meta.push({ tab: tab.id, feed: f, only: tab.only || null, not: tab.not || null, dropSrc: tab.dropSrc || null });
   }));
 
   const cutoff = Date.now() - MAX_AGE_DAYS * 86400000;
@@ -249,10 +288,12 @@ function refreshBody_(start) {
         if (!it.t || !it.u) return;
         if (it.d && it.d < cutoff) return;
         if (m.feed.jaOnly && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) return;   // 日本語が無い＝英語版
-        if (m.not && m.not.test(it.t + ' ' + (it.x || ''))) return;                // タブの「これは捨てる」ルール
+        if (HANGUL.test(it.t)) return;                                             // ハングルの題名は読めないので捨てる
+        if (m.not && hit_(m.not, it.t + ' ' + (it.x || ''), it)) return;               // タブの「これは捨てる」ルール
         if (m.only && !m.only.test(it.t + ' ' + (it.x || ''))) return;              // タブの「これだけ」ルール（題名＋要約で判定）
         it.s = it.s || m.feed.name;
-        if (dropSrc_(it.s)) return;
+        if (dropSrc_(it.s) || HANGUL.test(it.s)) return;                           // 媒体名がハングル＝記事も韓国語
+        if (m.dropSrc && m.dropSrc.test(it.s)) return;
         byTab[m.tab].push(it);
       });
     } catch (err) { errors.push(m.feed.name + ' ' + err); }
@@ -279,27 +320,42 @@ function refreshBody_(start) {
   const jaOnlySrc = {}; TABS.forEach(t => t.feeds.forEach(f => { if (f.jaOnly) jaOnlySrc[f.name] = 1; }));
   const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
   const notOf  = {}; TABS.forEach(t => { if (t.not)  notOf[t.id]  = t.not;  });
-  const dropOld_ = (id, it) => dropSrc_(it.s) || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || ''))) || (notOf[id] && notOf[id].test(it.t + ' ' + (it.x || '')));
+  const srcOf = {}; TABS.forEach(t => { if (t.dropSrc) srcOf[t.id] = t.dropSrc; });
+  const dropOld_ = (id, it) => dropSrc_(it.s) || HANGUL.test(it.t) || HANGUL.test(it.s) || (srcOf[id] && srcOf[id].test(it.s)) || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || ''))) || (notOf[id] && hit_(notOf[id], it.t + ' ' + (it.x || ''), it));
   let old = null;
   const tc = Date.now();
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
   timing.push('cache-read ' + (Date.now() - tc) + 'ms');
   console.log('cache read ' + (Date.now() - tc) + 'ms');
+  const fresh = { japan: 1, local: 1, kpop: 1 };   // 作り直しの回（GEN が変わった回）は、この 3 タブの前回ぶんを使わない
   if (old && old.tabs) {
     Object.keys(byTab).forEach(id => {
+      if (old.gen !== GEN && fresh[id]) return;
       (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff && !dropOld_(id, it)) byTab[id].push(it); });
     });
   }
 
   // タブ内の重複を消して新しい順に
   Object.keys(byTab).forEach(id => {
-    const seen = {}; const keys = [];
+    const seen = {}; const keys = []; const bySrc = {};
     byTab[id] = byTab[id]
-      .map((it, i) => ({ it: it, i: i })).sort((a, b) => (aggRank_(a.it.s) - aggRank_(b.it.s)) || (a.i - b.i)).map(o => o.it)   // 元の媒体を先に
-      .filter(it => { const k = normTitle_(it.t); if (seen[it.u] || sameStory_(keys, k)) return false; seen[it.u] = 1; keys.push(k); return true; })
+      .map((it, i) => ({ it: it, i: i })).sort((a, b) => (aggRank_(a.it.s) - aggRank_(b.it.s)) || ((b.it.d || 0) - (a.it.d || 0)) || (a.i - b.i)).map(o => o.it)   // 元の媒体を先に、同じなら新しいほうを先に
+      .filter(it => {
+        const k = normTitle_(it.t); if (seen[it.u] || sameStory_(keys, k)) return false;
+        // 同じ媒体の出し直し（「約1.5億」→「約1.5億円」のような書き換え）は新しいほうだけ残す
+        const g = grams_(k); const list = bySrc[it.s] || (bySrc[it.s] = []);
+        for (let i = 0; i < list.length; i++) if (simGrams_(list[i], g) >= 0.75) return false;
+        list.push(g); seen[it.u] = 1; keys.push(k); return true;
+      })
       .sort((a, b) => (b.d || 0) - (a.d || 0))
       .slice(0, MAX_PER_TAB);
   });
+
+  // トップの「主なニュース」
+  const tp = Date.now();
+  const pk = collectPicks_(old, errors);
+  timing.push('picks ' + (Date.now() - tp) + 'ms');
+  console.log('picks ' + (Date.now() - tp) + 'ms');
 
   const tw = Date.now();
   const weather = fetchWeather_(old && old.weather);
@@ -307,6 +363,9 @@ function refreshBody_(start) {
   console.log('weather ' + (Date.now() - tw) + 'ms');
   const data = {
     updated: Date.now(),
+    gen: GEN,
+    picks: pk.picks,
+    pickSkip: pk.pickSkip,
     tabs: byTab,
     weather: weather,
     errors: errors,
@@ -317,6 +376,99 @@ function refreshBody_(start) {
   writeCache_(JSON.stringify(data));
   console.log('cache write ' + (Date.now() - ts) + 'ms');
   Logger.log('refresh 完了 ' + data.took + 'ms, errors: ' + errors.join(' / ') + ' | ' + timing.join(' | '));
+}
+
+// ============================================================
+// 主なニュース（Yahoo!トピックス）
+//   ・主要 / 国内 / 国際 / 経済 / IT / 科学 の「編集部が選んだ 8 本」を集める
+//   ・エンタメ / スポーツに載っているものは外す（主要に混ざるため）
+//   ・リンク先は pickup ページ（要約だけ）なので、そこから記事本体の URL・写真・媒体名を拾っておく
+//   ・一覧から外れた話も 36 時間は残す（その日の主な話を後から読めるように）
+// ============================================================
+const PICK_TOP = 'top-picks';
+const PICK_CATS = ['top-picks', 'domestic', 'world', 'business', 'it', 'science'];
+const PICK_SKIP = ['entertainment', 'sports'];
+const PICK_KEEP_MS = 36 * 3600000;
+const PICK_RESOLVE_MAX = 24;     // 1 回の収集で pickup ページを開く上限（初回は 2〜3 回で揃う）
+const PICK_UA = { 'User-Agent': 'Mozilla/5.0 (AIR LAB NEWS; personal RSS reader)' };
+
+function collectPicks_(old, errors) {
+  const keep = { picks: (old && old.picks) || [], pickSkip: (old && old.pickSkip) || [] };
+  const cats = PICK_CATS.concat(PICK_SKIP);
+  let rs;
+  try { rs = UrlFetchApp.fetchAll(cats.map(c => ({ url: yt(c), muteHttpExceptions: true, headers: PICK_UA }))); }
+  catch (e) { errors.push('主なニュース ' + e); return keep; }
+
+  const now = Date.now();
+  const skip = {}; keep.pickSkip.forEach(id => { skip[id] = 1; });
+  const prev = {}; keep.picks.forEach(p => { prev[p.id] = p; });
+  const live = {};
+  cats.forEach((c, i) => {
+    const r = rs[i];
+    if (r.getResponseCode() !== 200) { errors.push('主なニュース ' + c + ' HTTP ' + r.getResponseCode()); return; }
+    let items = [];
+    try { items = parseRegex_(r.getContentText('UTF-8')); } catch (e) { errors.push('主なニュース ' + c + ' ' + e); }
+    items.forEach((it, j) => {
+      const m = String(it.u).match(/pickup\/(\d+)/); if (!m) return;
+      const id = m[1];
+      if (PICK_SKIP.indexOf(c) >= 0) { skip[id] = 1; return; }
+      if (!live[id]) live[id] = { t: it.t, d: it.d, c: c, top: 0, rank: 99 };
+      else if (live[id].c === PICK_TOP) live[id].c = c;   // 主要に載っている話の分野（国内・国際…）
+      if (c === PICK_TOP) { live[id].top = 1; live[id].rank = j; }
+    });
+  });
+  if (!Object.keys(live).length) return keep;   // 全部取れなかった回は前回のまま
+
+  let out = [];
+  const need = [];
+  Object.keys(live).forEach(id => {
+    if (skip[id]) return;
+    const l = live[id], p = prev[id] || {};
+    const o = { id: id, t: l.t, d: p.d || l.d, c: l.c, top: l.top, rank: l.rank, live: 1,
+                u: p.u || '', i: p.i || '', s: p.s || '', x: p.x || '', h: p.h || '', tries: p.tries || 0 };
+    if (!o.u && o.tries < 3) need.push(o);
+    out.push(o);
+  });
+  Object.keys(prev).forEach(id => {
+    const p = prev[id];
+    if (live[id] || skip[id] || now - p.d > PICK_KEEP_MS) return;
+    p.live = 0; p.top = 0; p.rank = 99; out.push(p);
+  });
+
+  // pickup ページを開いて、記事本体の URL・写真・媒体名・要約を拾う（主要 → 新しい順）
+  need.sort((a, b) => (b.top - a.top) || (a.rank - b.rank) || ((b.d || 0) - (a.d || 0)));
+  const todo = need.slice(0, PICK_RESOLVE_MAX);
+  for (let i = 0; i < todo.length; i += FETCH_CHUNK) {
+    const part = todo.slice(i, i + FETCH_CHUNK);
+    let ps = [];
+    try { ps = UrlFetchApp.fetchAll(part.map(o => ({ url: 'https://news.yahoo.co.jp/pickup/' + o.id, muteHttpExceptions: true, followRedirects: true, headers: PICK_UA }))); }
+    catch (e) { errors.push('主なニュース pickup ' + e); continue; }
+    ps.forEach((r, j) => {
+      const o = part[j]; o.tries++;
+      try { if (r.getResponseCode() === 200) parsePickup_(r.getContentText('UTF-8'), o); } catch (e) {}
+    });
+  }
+
+  out = out.filter(o => !NOT_NEWS.test(o.t + ' ' + (o.h || '')));
+  out.sort((a, b) => (b.live - a.live) || (a.rank - b.rank) || ((b.d || 0) - (a.d || 0)));
+  return { picks: out, pickSkip: Object.keys(skip).slice(-400) };
+}
+
+// pickup ページから拾う。記事へのリンクは <a href="…/articles/…" data-ual-gotocontent="true"><p>見出し</p><span><span>媒体名</span></span></a>
+function parsePickup_(html, o) {
+  const meta = name => { const m = html.match(new RegExp('property="og:' + name + '" content="([^"]*)"')); return m ? decode_(m[1]) : ''; };
+  const a = html.match(/<a href="(https:\/\/news\.yahoo\.co\.jp\/(?:expert\/)?articles\/[0-9a-f]+)"[^>]*data-ual-gotocontent="true"[^>]*>\s*<p[^>]*>([^<]*)<\/p>(?:\s*<span[^>]*>\s*<span[^>]*>([^<]*)<\/span>)?/);
+  if (a) { o.u = a[1]; o.h = decode_(a[2]).trim(); o.s = decode_(a[3] || '').trim().replace(/^テレビ朝日系（ANN）$/, 'テレビ朝日').replace(/^TBS NEWS DIG Powered by JNN$/, 'TBS'); }
+  else {
+    // pickup が記事そのものへ転送されることがある（専門家の記事など）。そのときは開いたページ自身が記事
+    const url = meta('url');
+    if (/\/articles\//.test(url)) { o.u = url; o.h = meta('title').replace(/\s*[-–]\s*Yahoo!ニュース.*$/, '').replace(/\([^()]*\)\s*$/, '').trim(); }
+  }
+  if (o.u && !o.s) o.s = /\/expert\//.test(o.u) ? 'Yahoo!ニュース エキスパート' : 'Yahoo!ニュース';
+  const img = meta('image');
+  if (img && !/ogp_default/.test(img)) o.i = img;
+  let x = meta('description').replace(/[\u200b-\u200d\u2060\ufeff]/g, '').replace(/\s+/g, ' ').trim();
+  o.x = x.length > SUMMARY_LEN ? x.slice(0, SUMMARY_LEN) + '…' : x;
 }
 
 // ============================================================
@@ -412,6 +564,7 @@ function parseRegex_(xml) {
     it.s = tag_(b, 'source');
     const img = b.match(/<(?:enclosure|media:content|media:thumbnail)[^>]*url="([^"]+)"/);
     if (img) it.i = img[1];
+    if (!it.i) { const im = tag_(b, 'image'); if (/^https?:\/\//.test(im)) it.i = im; }   // Yahoo!ニュースは <image> に写真の URL
     finishItem_(it, tag_(b, 'content:encoded') || tag_(b, 'content'));
     out.push(it);
   });
@@ -454,6 +607,13 @@ function finishItem_(it, content) {
   // Googleニュースの「タイトル - 媒体名」を分解
   const gm = it.t.match(/^(.*)\s[-–]\s([^-–]{1,30})$/);
   if (gm && /news\.google\.com/.test(it.u)) { it.t = gm[1].trim(); it.s = it.s || gm[2].trim(); }
+  // Yahoo!ニュースの「タイトル(媒体名)」を分解。「(テレビ朝日系（ANN）)」のように全角かっこを含むことがある
+  if (/news\.yahoo\.co\.jp\/(expert\/)?articles\//.test(it.u)) {
+    it.u = it.u.replace(/\?source=rss$/, '');
+    const ym = it.t.match(/^(.*\S)\s*\(([^()]{1,30})\)\s*$/);
+    if (ym) { it.t = ym[1].trim(); it.s = it.s || ym[2].trim(); }
+    it.s = String(it.s).replace(/^テレビ朝日系（ANN）$/, 'テレビ朝日').replace(/^FNNプライムオンライン（フジテレビ系）$/, 'FNN');
+  }
   it.t = decode_(it.t).replace(/\s+/g, ' ').trim();
   if (/(^|\.)nnn\.co\.jp$/i.test(it.s)) it.s = '日本海新聞';   // 媒体名がドメインで来る日本海新聞（DROP_SOURCES で捨てる）
   if (/^[\w.-]+\.[a-z]{2,}$/i.test(it.s)) it.s = '';        // 媒体名がドメインだけなら捨てて feed 名を使う
@@ -490,7 +650,7 @@ function parseDate_(s) {
 // まとめサイト経由の同じ記事を1本にするための題名の正規化。
 // 「…（BSS山陰放送）」「… | BSSニュース | BSS山陰放送 (1ページ)」「…（2026年10月11日掲載）」のような、後ろに付く媒体名・掲載日・ページを落としてから比べる
 function normTitle_(t) {
-  let s = String(t);
+  let s = String(t).normalize('NFKC');   // 全角の数字・英字を半角にそろえる（「２校」と「2校」が別の記事に見えていた）
   const p = s.search(/\s*[|｜]/);
   if (p >= 12) s = s.slice(0, p);
   for (let i = 0; i < 3; i++) s = s.replace(/\s*[（(][^（）()]{0,24}(放送|テレビ|新聞|通信|ニュース|NEWS|掲載|ページ)[^（）()]{0,12}[）)]\s*$/i, '');
@@ -500,6 +660,10 @@ function normTitle_(t) {
 // 同じ記事が複数あるとき、元の媒体のものを残す（まとめサイト経由は後回し）
 const AGG_SOURCES = ['Yahoo!ニュース', 'ｄメニューニュース', 'dメニューニュース', 'Infoseek', 'ライブドアニュース', 'gooニュース', 'goo ニュース', 'MSN', 'エキサイトニュース', 'ニフティニュース'];
 function aggRank_(s) { return AGG_SOURCES.indexOf(s) >= 0 ? 1 : 0; }
+
+// 題名を 2 文字ずつに切った集合と、その重なりぐあい（0〜1）
+function grams_(k) { const g = {}; let n = 0; for (let i = 0; i < k.length - 1; i++) { const b = k.substr(i, 2); if (!g[b]) { g[b] = 1; n++; } } return { g: g, n: n }; }
+function simGrams_(a, b) { if (a.n < 8 || b.n < 8) return 0; let c = 0; for (const x in a.g) if (b.g[x]) c++; return c / Math.min(a.n, b.n); }
 
 // 同じ記事か。題名が同じか、片方の題名の後ろに何か足しただけ（「…（テレビ朝日系（ANN））」「…（Jタウンネット）」など）なら同じとみなす
 function sameStory_(keys, k) {
