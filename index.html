@@ -154,7 +154,7 @@
 </div>
 
 <script>
-const VERSION = '2026-11-26d';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
+const VERSION = '2026-11-26e';   // 画面を直したらここを上げる（⚙︎に出る。古い画面が残ってないか見分ける用）
 
 const FC_HTML = `
 <div class="fc-card" style="--c:linear-gradient(100deg,#e11900 0%,#7e00bf 100%);--b:#7e00bf;--t:#fff">
@@ -330,16 +330,21 @@ function buildTab(id) {
       // 裏方がまだ古い（主なニュースが無い）ときは、ニュースのタブから新しい順に出す
       main1 = pick(visible(DATA.tabs.japan || []), 12);
     }
+    // 国内政治（2026-11-26 iller「トップに国内政治を増やしてくれ」）。裏方が題名の言葉で選んだ記事から 6 本。
+    // 上の段にもう出ている記事は除く
+    const shown = new Set(main1.concat(more).map(it => it.u));
+    const pol = pick(visible(DATA.tabs.politics || []).filter(it => !shown.has(it.u)), 6);
     const local = pick(visible(DATA.tabs.local || []), 5);
     const others = [];
     TABS.forEach(t => { if (t.id === 'japan' || t.id === 'local') return; pick(visible(DATA.tabs[t.id] || []), 1).forEach(it => others.push({ ...it, tag: t.name })); });
     // 先頭の 1 本は写真つきで大きく出す（まだ読んでいなくて写真がある最初の話）
     const li = main1.findIndex(it => it.i && unread(it));
     html += '<div class="sec">主なニュース</div>' + main1.map((it, i) => card(it, i === li)).join('');
+    if (pol.length) html += '<div class="sec">政治</div>' + pol.map(it => card(it)).join('');
     if (more.length) html += '<div class="sec">ほかの話題</div>' + more.map(it => card(it)).join('');
     if (local.length) html += '<div class="sec">鳥取</div>' + local.map(it => card(it)).join('');
     if (others.length) html += '<div class="sec">ほかのタブから</div>' + others.map(it => card(it)).join('');
-    mark = more.concat(local, others).map(it => it.u);
+    mark = pol.concat(more, local, others).map(it => it.u);
   } else {
     // 150 本を一度に描くと、タブを切り替えた瞬間に待たされる（写真つきで重い）。
     // 先頭の 14 本だけ先に描いて、残りは画面が出たあとに足す

@@ -55,6 +55,30 @@ const QUAKE_ELSEWHERE = /^(?![^|]*(鳥取|島根))[^|]*震度[0-9０-９][^|]*�
 function notLocal_(s, it) { const t = it ? it.t : s; return QUAKE_ELSEWHERE.test(s) || JUNK_TITLE.test(t) || (SHIMANE.test(t) && !TOTTORI.test(t)); }   // 島根かどうかは題名だけで見る（要約に「山陰」「鳥取」が出るだけの記事を残さない）
 function notJunk_(s, it) { return JUNK_TITLE.test(it ? it.t : s); }
 function notNews_(s, it) { const t = it ? it.t : s; return JUNK_TITLE.test(t) || NOT_NEWS.test(t); }
+// ---------- 国内政治（トップの「政治」の段に使う。2026-11-26 iller「トップに国内政治を増やしてくれ」） ----------
+// Yahoo!ニュースに政治だけのフィードは無いので、通信社・新聞・テレビの記事を題名の言葉で選ぶ
+const POLITICS = new RegExp([
+  '首相', '総理', '官房長官', '内閣', '閣僚', '閣議', '大臣', '副大臣', '政務官', '担当相',
+  '外相', '財務相', '防衛相', '総務相', '法相', '文科相', '厚労相', '農相', '農水相', '経産相', '国交相', '環境相', '復興相', 'デジタル相', '経済再生相', '経済安保相', 'こども相',
+  '国会', '衆院', '参院', '衆議院', '参議院', '予算委', '党首討論', '代表質問', '与党', '野党', '与野党',
+  '自民', '自公', '立憲', '立民', '維新', '公明', '国民民主', '共産党', 'れいわ', '参政党', '保守党', '社民', '中道改革', 'チームみらい',
+  '党首', '代表選', '総裁', '幹事長', '政調会長', '総務会長', '国対委員長', '選対委員長',
+  '選挙', '解散', '公示', '出馬', '立候補', '補正予算', '予算案', '法案', '改正案', '問責', '不信任', '政権', '官邸',
+  '政府[がはも、・]', '政府方針', '政府案', '知事', '市長選', '町長選', '支持率', '世論調査', '憲法', '改憲', '安保3文書', '安保関連', '防衛費', '増税', '減税', '消費税', '給付金',
+  '政治資金', '献金', '裏金', '政倫審', '議員', '税制改正', '税調', '骨太'
+].join('|'));
+// 外国の政治（国内の話と一緒に出てこないかぎり外す）
+const FOREIGN_POL = /米国|米大統領|米政権|米議会|米上院|米下院|米中|米露|トランプ|バンス|プーチン|ロシア|ウクライナ|ゼレンスキー|中国|習近平|韓国|北朝鮮|金正恩|台湾|英国|英首相|イギリス|フランス|仏大統領|ドイツ|独首相|イタリア|EU|欧州|イスラエル|ネタニヤフ|ガザ|イラン|インド|豪|カナダ|ブラジル|ベネズエラ|タイ|フィリピン|ミャンマー|ネパール|エジプト|トルコ|シリア|香港/;
+const DOMESTIC_ANCHOR = /日本|高市|国会|衆院|参院|自民|与党|野党|官房長官|外相|防衛相|日米|日中|日韓|日露|日朝|日台|訪日|来日/;
+function onlyPolitics_(s, it) {
+  const t = it ? it.t : s;
+  if (/^◎|：地域ニュース$/.test(t)) return false;          // 時事の一行速報、読売の地方版
+  if (it && /iJAMP/.test(it.s || '')) return false;       // 時事の会員向けサービス
+  if (!POLITICS.test(t)) return false;
+  if (FOREIGN_POL.test(t) && !DOMESTIC_ANCHOR.test(t)) return false;
+  return true;
+}
+
 // ルールは正規表現でも関数でもいい
 function hit_(rule, s, it) { return typeof rule === 'function' ? !!rule(s, it) : rule.test(s); }
 
@@ -124,6 +148,18 @@ const TABS = [
     { name: '時事通信', url: gn('site:jiji.com') },
     { name: '読売新聞', url: gn('site:yomiuri.co.jp') },
     { name: 'ロイター', url: gn('site:jp.reuters.com') },
+  ]},
+  // 画面のタブには出さない（hidden）。トップの「政治」の段だけが使う
+  { id: 'politics', name: '政治', color: '#3f7d5c', hidden: true,
+    only: onlyPolitics_,
+    not: notNews_,
+    feeds: [
+    { name: '共同通信', url: yh('kyodonews') },
+    { name: '産経新聞', url: yh('san') },
+    { name: 'テレビ朝日', url: yh('ann') },
+    { name: 'FNN', url: yh('fnnprimev') },
+    { name: '時事通信', url: gn('site:jiji.com 政治') },
+    { name: '読売新聞', url: gn('site:yomiuri.co.jp 政治') },
   ]},
   { id: 'tech', name: 'テクノロジー', color: '#5d5f9e', feeds: [
     { name: 'ITmedia', url: 'https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml' },
@@ -231,7 +267,7 @@ function refreshNow() {
 
 // 画面から呼ばれる：タブ定義（名前と色）
 function getTabs() {
-  return TABS.map(t => ({ id: t.id, name: t.name, color: t.color }));
+  return TABS.filter(t => !t.hidden).map(t => ({ id: t.id, name: t.name, color: t.color }));
 }
 
 // ============================================================
@@ -290,7 +326,7 @@ function refreshBody_(start) {
         if (m.feed.jaOnly && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) return;   // 日本語が無い＝英語版
         if (HANGUL.test(it.t)) return;                                             // ハングルの題名は読めないので捨てる
         if (m.not && hit_(m.not, it.t + ' ' + (it.x || ''), it)) return;               // タブの「これは捨てる」ルール
-        if (m.only && !m.only.test(it.t + ' ' + (it.x || ''))) return;              // タブの「これだけ」ルール（題名＋要約で判定）
+        if (m.only && !hit_(m.only, it.t + ' ' + (it.x || ''), it)) return;          // タブの「これだけ」ルール（題名＋要約で判定。関数なら記事ごと渡す）
         it.s = it.s || m.feed.name;
         if (dropSrc_(it.s) || HANGUL.test(it.s)) return;                           // 媒体名がハングル＝記事も韓国語
         if (m.dropSrc && m.dropSrc.test(it.s)) return;
@@ -321,7 +357,7 @@ function refreshBody_(start) {
   const onlyOf = {}; TABS.forEach(t => { if (t.only) onlyOf[t.id] = t.only; });
   const notOf  = {}; TABS.forEach(t => { if (t.not)  notOf[t.id]  = t.not;  });
   const srcOf = {}; TABS.forEach(t => { if (t.dropSrc) srcOf[t.id] = t.dropSrc; });
-  const dropOld_ = (id, it) => dropSrc_(it.s) || HANGUL.test(it.t) || HANGUL.test(it.s) || (srcOf[id] && srcOf[id].test(it.s)) || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !onlyOf[id].test(it.t + ' ' + (it.x || ''))) || (notOf[id] && hit_(notOf[id], it.t + ' ' + (it.x || ''), it));
+  const dropOld_ = (id, it) => dropSrc_(it.s) || HANGUL.test(it.t) || HANGUL.test(it.s) || (srcOf[id] && srcOf[id].test(it.s)) || (jaOnlySrc[it.s] && !/[\u3040-\u30ff\u4e00-\u9fff]/.test(it.t)) || (onlyOf[id] && !hit_(onlyOf[id], it.t + ' ' + (it.x || ''), it)) || (notOf[id] && hit_(notOf[id], it.t + ' ' + (it.x || ''), it));
   let old = null;
   const tc = Date.now();
   try { old = JSON.parse(readCache_() || 'null'); } catch (e) {}
@@ -614,7 +650,7 @@ function finishItem_(it, content) {
     if (ym) { it.t = ym[1].trim(); it.s = it.s || ym[2].trim(); }
     it.s = String(it.s).replace(/^テレビ朝日系（ANN）$/, 'テレビ朝日').replace(/^FNNプライムオンライン（フジテレビ系）$/, 'FNN');
   }
-  it.t = decode_(it.t).replace(/\s+/g, ' ').trim();
+  it.t = decode_(it.t).replace(/\s+/g, ' ').replace(/\s*[：:]\s*時事ドットコム$/, '').trim();
   if (/(^|\.)nnn\.co\.jp$/i.test(it.s)) it.s = '日本海新聞';   // 媒体名がドメインで来る日本海新聞（DROP_SOURCES で捨てる）
   if (/^[\w.-]+\.[a-z]{2,}$/i.test(it.s)) it.s = '';        // 媒体名がドメインだけなら捨てて feed 名を使う
   it.s = String(it.s).split(/\s*[|｜]\s*/)[0].trim().slice(0, 24);   // 「A | B | C」みたいに長い媒体名は最初だけ
@@ -654,7 +690,7 @@ function normTitle_(t) {
   const p = s.search(/\s*[|｜]/);
   if (p >= 12) s = s.slice(0, p);
   for (let i = 0; i < 3; i++) s = s.replace(/\s*[（(][^（）()]{0,24}(放送|テレビ|新聞|通信|ニュース|NEWS|掲載|ページ)[^（）()]{0,12}[）)]\s*$/i, '');
-  return s.toLowerCase().replace(/[\s　、。・「」『』（）()【】\[\]!?！？:：\-–—~〜…]/g, '').slice(0, 40);
+  return s.toLowerCase().replace(/[\s　、。・「」『』（）()【】\[\]!?！？:：=＝\-–—~〜…]/g, '').slice(0, 40);
 }
 
 // 同じ記事が複数あるとき、元の媒体のものを残す（まとめサイト経由は後回し）
