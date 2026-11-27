@@ -371,7 +371,10 @@ function refreshBody_(start) {
   if (old && old.tabs) {
     Object.keys(byTab).forEach(id => {
       if (old.gen !== GEN && fresh[id]) return;
-      (old.tabs[id] || []).forEach(it => { if (it.d && it.d >= cutoff && !dropOld_(id, it)) byTab[id].push(it); });
+      (old.tabs[id] || []).forEach(it => {
+        if (it.u) it.u = decode_(it.u);   // 前回ぶんに残ってる「&#45;」入りのリンクも直す
+        if (it.d && it.d >= cutoff && !dropOld_(id, it)) byTab[id].push(it);
+      });
     });
   }
 
@@ -598,12 +601,12 @@ function parseRegex_(xml) {
   blocks.forEach(b => {
     const it = { t: tag_(b, 'title'), u: '', d: 0, i: '', x: '', s: '' };
     const l = b.match(/<link[^>]*href="([^"]+)"/) || b.match(/<link[^>]*>([^<]+)<\/link>/);
-    it.u = l ? l[1].trim() : '';
+    it.u = l ? decode_(l[1].trim()) : '';   // GIGAZINE は「-」を「&#45;」で書いてくる。そのままだと # から先が切れて別の記事が開く
     it.d = parseDate_(tag_(b, 'pubDate') || tag_(b, 'dc:date') || tag_(b, 'published') || tag_(b, 'updated'));
     it.x = tag_(b, 'description') || tag_(b, 'summary');
     it.s = tag_(b, 'source');
     const img = b.match(/<(?:enclosure|media:content|media:thumbnail)[^>]*url="([^"]+)"/);
-    if (img) it.i = img[1];
+    if (img) it.i = decode_(img[1]);
     if (!it.i) { const im = tag_(b, 'image'); if (/^https?:\/\//.test(im)) it.i = im; }   // Yahoo!ニュースは <image> に写真の URL
     finishItem_(it, tag_(b, 'content:encoded') || tag_(b, 'content'));
     out.push(it);
